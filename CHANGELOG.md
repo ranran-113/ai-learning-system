@@ -171,7 +171,51 @@ v主版本.次版本.修订版本
 
 ---
 
-## v0.1.2 - 待开发
+## v0.1.2 - 第二阶段三导师对话接入
+
+日期：2026-05-12
+
+### 已完成
+
+- ✅ LLM 客户端 `lib/llm/client.ts`：fetch 直连 OpenAI 兼容 API（DeepSeek/GLM/OpenAI 一套代码全支持），含流式 + 非流式
+- ✅ LearningContext 完整定义 `lib/langgraph/state.ts`：覆盖 testResult + currentLesson + messages + outputHistory + activeMentor + mentorTurnCount + isFirstTurnOfSession
+- ✅ 三导师 prompt builder `lib/agents/builders.ts`：把 LearningContext 翻译成 system prompt + 历史 messages
+- ✅ 路由 `lib/langgraph/router.ts`：实现 MENTORS.md §6 路由优先级 0-3 + 连续性规则
+- ✅ 主流程 `lib/langgraph/orchestrate.ts`：route → buildPrompt → streamLLM
+- ✅ POST `/api/chat`：SSE 流式输出（meta + chunk + done/error 三种帧）
+- ✅ 学习对话页 `/learn`：完整聊天 UI + 流式渲染 + 输出沉淀弹层 + 结束本节归档
+- ✅ Records 持久化 `lib/records/records.ts`：localStorage 存当前会话 / 归档会话 / 跨会话输出沉淀
+- ✅ Profile 页「开始第一节学习」按钮启用，跳转到 `/learn?lesson=Lx`
+- ✅ 决定不引入 LangGraph 框架，用纯 TypeScript 等价实现。文件路径保留 `lib/langgraph/` 与文档一致
+
+### 架构决策
+
+- **LLM 客户端去 SDK 化**：原计划用 `openai` npm 包，实际跑下来 SDK v6 + DeepSeek baseURL 组合有兼容问题。改为 fetch 直连 OpenAI 兼容 API，**反而更稳、更轻、provider 切换更干净**。
+- **MVP 不引入 LangGraph 框架**：MVP 流程是「route → respond → save」单步，不是真正的图。用纯 TS 实现更简单、bundle 更小、调试更容易。如果未来要扩展为多分支流程图，再引入 LangGraph 平迁。
+- **流式响应**：选 SSE（Server-Sent Events）风格的 ReadableStream，不用 WebSocket 也不用 React Suspense streaming，最稳。
+
+### 第一阶段 vs 第二阶段对比
+
+| 维度 | v0.1.1 第一阶段 | v0.1.2 第二阶段 |
+|------|----------------|----------------|
+| 页面数 | 4 | 5（新增 /learn） |
+| API 路由 | 0 | 1（/api/chat） |
+| LLM 调用 | 无 | DeepSeek（可换 GLM/Claude/OpenAI） |
+| 数据存储 | localStorage | localStorage（不变，Supabase 在第三阶段） |
+| 三导师 | 仅 Prompt 文件 | 真实路由 + 实时回复 |
+| 流式 | 无 | SSE 流式 token |
+
+### 下一步（v0.1.3 或更后）
+
+- Supabase 数据持久化（让数据跨设备 + 长期保留）
+- 学习记录页 `/records`（查所有历史会话 + 输出沉淀）
+- AI 热点学习舱 `/hot`
+- 上传资料自动拆课 `/materials`
+- 上传资料 UI + 服务端解析
+
+---
+
+## v0.1.2 - 待开发（已被本版本替代）
 
 计划内容：
 

@@ -170,11 +170,16 @@ export default function ProfilePage() {
               <span>目标等级：Lv.{recommendedLesson.targetLevelMin}–Lv.{recommendedLesson.targetLevelMax}</span>
             </div>
             <div className="pt-2">
-              <button disabled className="btn-primary opacity-50">
+              <Link
+                href={`/learn?lesson=${recommendedLessonId}`}
+                className="btn-primary inline-block"
+              >
                 开始第一节学习
-              </button>
+              </Link>
               <p className="mt-2 text-xs text-ink-mute">
-                第二阶段才接 AI（你的 DeepSeek API Key 到位后）。现在这个按钮先占着位。
+                和 {Array.isArray(recommendedLesson.defaultMentor)
+                  ? recommendedLesson.defaultMentor.map(m => MENTOR_NAMES[m]).join(" / ")
+                  : MENTOR_NAMES[recommendedLesson.defaultMentor]} 一起跑这一节。
               </p>
             </div>
           </div>
