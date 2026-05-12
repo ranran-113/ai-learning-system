@@ -226,7 +226,39 @@ v主版本.次版本.修订版本
 
 ---
 
-## v0.1.3 - 待开发
+## v0.1.3 - dashboard + 课程中心 + 热点学习舱 + 多 source learn
+
+日期：2026-05-12
+
+### 已完成
+
+- ✅ `/profile` 改造为学习中心 dashboard：6 个 tile 入口（继续学习 / 课程 / 热点 / 上传资料 / 记录 / 能力地图）+ 测试结果嵌入
+- ✅ `/courses` 课程中心：12 节微课列表 + 按类别/「适合我」筛选 + 等级标签
+- ✅ `/records` 学习记录：会话归档 + 输出沉淀双 tab，自动从 localStorage 读取
+- ✅ `lib/hot/client.ts` AI HOT API 客户端 + 字段规范化 + 兜底（API 失败显示本地示例热点）
+- ✅ `app/api/hot/route.ts` 服务端 hot 列表端点（5 分钟缓存）
+- ✅ `/hot` AI 热点学习舱：精选列表，每条点开可看详情
+- ✅ `/hot/[id]` 热点详情页：标题、摘要、原文链接、「帮我讲解」CTA
+- ✅ `/learn` 扩展支持多 source：内置课程 / hot_item（material 占位）
+- ✅ 热点的合成课程：通过 `buildSyntheticLessonFromHot()` 把热点构造成 BuiltInLesson，复用三导师 prompt builder。模板「是什么→解决什么→相似/不同→对 AIPM 启发」
+- ✅ `/materials` 上传资料页占位（明确告诉用户「即将开放」+ 引导去热点 / 课程）
+
+### 架构决策
+
+- **热点学习的"合成 lesson" 模式**：不为热点单独写一套 mentor prompt，而是把热点 wrap 成 BuiltInLesson 形式，复用现有的三导师 prompt builder + LearningContext。代码复用度高，新增 source 类型只需要一个 `buildSyntheticLessonFromXxx()` 函数。
+- **AI HOT 兜底**：API 失败时不报错，显示 3 条本地示例热点。用户体验不中断。
+- **/hot 用 Server Component + revalidate=300**：5 分钟缓存，不每次访问都打 AI HOT，省用量。
+
+### 下一步（v0.1.4）
+
+- Supabase 邮箱登录（等用户提供 keys）
+- 数据从 localStorage 迁移到 Supabase tables
+- /materials 真正实现：文件上传 + LLM 拆课
+- 学习记录跨设备同步
+
+---
+
+## v0.1.3 - 待开发（已被本版本替代）
 
 计划内容：
 

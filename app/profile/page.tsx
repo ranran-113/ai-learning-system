@@ -45,7 +45,6 @@ export default function ProfilePage() {
     setAdjustedDelta(delta);
     setHasAdjusted(true);
     lsSet(LS_KEYS.USER_LEVEL_ADJUSTED, true);
-    // 同时把生效等级写回 result
     const newResult = { ...result, aiLevel: { ...result.aiLevel, level: effectiveLevel + delta - adjustedDelta } };
     setResult(newResult);
     lsSet(LS_KEYS.TEST_RESULT, newResult);
@@ -61,8 +60,8 @@ export default function ProfilePage() {
   };
 
   return (
-    <main className="container-narrow py-10">
-      <header className="mb-10 flex items-center justify-between">
+    <main className="container-narrow py-8">
+      <header className="mb-8 flex items-center justify-between">
         <Link href="/" className="text-sm text-ink-mute hover:text-ink-soft">
           ← 回首页
         </Link>
@@ -71,15 +70,59 @@ export default function ProfilePage() {
         </button>
       </header>
 
-      <section className="space-y-8">
-        <div className="space-y-3">
-          <p className="text-sm tracking-wide text-ink-mute">你的成长档案</p>
+      <section className="space-y-6">
+        {/* 标题 */}
+        <div className="space-y-2">
+          <p className="text-sm tracking-wide text-ink-mute">你的学习中心</p>
           <h1 className="text-3xl font-medium leading-snug sm:text-4xl">
             你是「{result.learningProfile.type}」
           </h1>
           <p className="text-base leading-relaxed text-ink-soft">
             这不是标签，是你现在的状态。状态会变，地图会更新。
           </p>
+        </div>
+
+        {/* 学习中心入口 —— dashboard 核心区 */}
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          {recommendedLesson && (
+            <DashboardTile
+              href={`/learn?lesson=${recommendedLessonId}`}
+              icon="▶"
+              title="继续学习"
+              subtitle={recommendedLesson.title}
+              accent
+            />
+          )}
+          <DashboardTile
+            href="/courses"
+            icon="📚"
+            title="课程中心"
+            subtitle="12 节微课 · 4 条主线"
+          />
+          <DashboardTile
+            href="/hot"
+            icon="🔥"
+            title="AI 热点学习舱"
+            subtitle="精选热点 · 帮我讲解"
+          />
+          <DashboardTile
+            href="/materials"
+            icon="📄"
+            title="上传资料"
+            subtitle="把你的资料拆成微课"
+          />
+          <DashboardTile
+            href="/records"
+            icon="🌱"
+            title="学习记录"
+            subtitle="你做过的会话和沉淀"
+          />
+          <DashboardTile
+            href="/levels"
+            icon="🗺"
+            title="能力地图"
+            subtitle="Lv.0 - Lv.10"
+          />
         </div>
 
         {/* AI 等级卡 */}
@@ -154,46 +197,8 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        {/* 第一节推荐课 */}
-        {recommendedLesson && (
-          <div className="card space-y-3">
-            <p className="text-sm text-ink-mute">为你推荐的第一节</p>
-            <h3 className="text-lg font-medium leading-snug">{recommendedLesson.title}</h3>
-            <p className="text-sm leading-relaxed text-ink-soft">{recommendedLesson.summary}</p>
-            <div className="flex flex-wrap items-center gap-2 pt-1 text-xs text-ink-mute">
-              <span>默认导师：{
-                Array.isArray(recommendedLesson.defaultMentor)
-                  ? recommendedLesson.defaultMentor.map(m => MENTOR_NAMES[m]).join(" → ")
-                  : MENTOR_NAMES[recommendedLesson.defaultMentor]
-              }</span>
-              <span>·</span>
-              <span>目标等级：Lv.{recommendedLesson.targetLevelMin}–Lv.{recommendedLesson.targetLevelMax}</span>
-            </div>
-            <div className="pt-2">
-              <Link
-                href={`/learn?lesson=${recommendedLessonId}`}
-                className="btn-primary inline-block"
-              >
-                开始第一节学习
-              </Link>
-              <p className="mt-2 text-xs text-ink-mute">
-                和 {Array.isArray(recommendedLesson.defaultMentor)
-                  ? recommendedLesson.defaultMentor.map(m => MENTOR_NAMES[m]).join(" / ")
-                  : MENTOR_NAMES[recommendedLesson.defaultMentor]} 一起跑这一节。
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* AI 能力地图 + 其他入口 */}
-        <div className="flex flex-wrap gap-3 pt-2">
-          <Link href="/levels" className="btn-ghost">
-            查看完整 AI 能力 0-10 级地图
-          </Link>
-        </div>
-
         {/* 调试信息（折叠） */}
-        <details className="mt-12 text-xs text-ink-mute">
+        <details className="mt-8 text-xs text-ink-mute">
           <summary className="cursor-pointer">查看评分细节（开发用）</summary>
           <pre className="mt-3 overflow-auto rounded bg-bg-subtle p-3 text-xs">
 {JSON.stringify(
@@ -216,6 +221,42 @@ export default function ProfilePage() {
         </details>
       </section>
     </main>
+  );
+}
+
+function DashboardTile({
+  href,
+  icon,
+  title,
+  subtitle,
+  accent,
+}: {
+  href: string;
+  icon: string;
+  title: string;
+  subtitle: string;
+  accent?: boolean;
+}) {
+  return (
+    <Link
+      href={href}
+      className={cn(
+        "block rounded-xl border p-4 transition hover:shadow-sm",
+        accent
+          ? "border-accent bg-accent/10 hover:bg-accent/20"
+          : "border-bg-warm/70 bg-white/40 hover:border-accent/40 hover:bg-bg-subtle/70"
+      )}
+    >
+      <div className="flex items-start gap-2.5">
+        <span className="text-xl leading-none">{icon}</span>
+        <div className="min-w-0 flex-1 space-y-0.5">
+          <p className={cn("text-sm font-medium leading-tight", accent && "text-accent-deep")}>
+            {title}
+          </p>
+          <p className="line-clamp-2 text-xs leading-tight text-ink-soft">{subtitle}</p>
+        </div>
+      </div>
+    </Link>
   );
 }
 

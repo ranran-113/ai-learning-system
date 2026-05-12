@@ -18,13 +18,92 @@ import {
 } from "@/lib/records/records";
 import type { ChatMessage, LearningContext } from "@/lib/langgraph/state";
 import { buildOpeningMessage } from "@/lib/agents/builders";
+import type { BuiltInLesson } from "@/types/lesson";
+import type { HotItem } from "@/lib/hot/client";
+
+// 把热点条目构造成合成 lesson（让导师 prompt builder 可以复用）
+function buildSyntheticLessonFromHot(item: HotItem): BuiltInLesson {
+  const shortTitle = item.title.length > 40 ? item.title.slice(0, 40) + "…" : item.title;
+  return {
+    id: `hot-${item.id}`,
+    courseId: "ai-hot",
+    title: item.title,
+    category: "hot",
+    targetLevelMin: 3,
+    targetLevelMax: 7,
+    defaultMentor: ["karpathy", "qian"],
+    summary: item.summary,
+    keyConcepts: ["是什么", "解决什么问题", "和已知什么相似 / 不同", "对 AIPM 的启发"],
+    socraticQuestions: [
+      `「${shortTitle}」—— 你第一眼看到这个，最想问的是什么？`,
+      `这个东西要解决的问题，和你已经知道的什么很像？`,
+      `如果你做 AI 产品，这条热点对你有什么具体启发？`,
+    ],
+    outputTask: `用一句话写下：「${shortTitle}」对你最有启发的一点`,
+    extensionRoadmap: [],
+  };
+}
+
+type LessonSourceInfo = {
+  lesson: BuiltInLesson;
+  sourceLabel: string;        // "课程"/"热点"/"资料"
+  backHref: string;            // 头部返回链接指向哪
+  backLabel: string;
+};
+
+async function loadLessonFromUrl(
+  searchParams: URLSearchParams,
+  testResult: TestResult
+): Promise<LessonSourceInfo | null> {
+  const source = searchParams.get("source");
+  const id = searchParams.get("id");
+  const lessonParam = searchParams.get("lesson");
+
+  // 热点学习
+  if (source === "hot_item" && id) {
+    try {
+      const res = await fetch(`/api/hot?limit=50`);
+      if (!res.ok) throw new Error("热点接口失败");
+      const data = await res.json();
+      const item: HotItem | undefined = data.items?.find((x: HotItem) => x.id === id);
+      if (!item) return null;
+      return {
+        lesson: buildSyntheticLessonFromHot(item),
+        sourceLabel: "热点学习",
+        backHref: `/hot/${encodeURIComponent(id)}`,
+        backLabel: "← 回热点",
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  // 上传资料学习（占位，第三阶段做）
+  if (source === "material" && id) {
+    return null; // 触发未实现路径
+  }
+
+  // 默认：内置课程
+  const resolvedId = lessonParam || recommendFirstLesson(testResult.aiLevel.level, testResult.recommendedPath);
+  const lesson = getLessonById(resolvedId);
+  if (!lesson) return null;
+  return {
+    lesson,
+    sourceLabel: "课程",
+    backHref: "/profile",
+    backLabel: "← 学习中心",
+  };
+}
 
 function LearnPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const lessonId = searchParams.get("lesson");
 
   const [testResult, setTestResult] = useState<TestResult | null>(null);
+  const [sourceInfo, setSourceInfo] = useState<LessonSourceInfo | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [activeMentor, setActiveMentor] = useState<MentorKey>("karpathy");
   const [mentorTurnCount, setMentorTurnCount] = useState(0);
@@ -48,58 +127,67 @@ function LearnPageInner() {
     }
     setTestResult(tr);
 
-    const resolvedLessonId = lessonId || recommendFirstLesson(tr.aiLevel.level, tr.recommendedPath);
-    const lesson = getLessonById(resolvedLessonId);
-    if (!lesson) {
-      router.replace("/profile");
-      return;
-    }
+    (async () => {
+      const info = await loadLessonFromUrl(searchParams, tr);
+      if (!info) {
+        const isMaterial = searchParams.get("source") === "material";
+        setLoadError(
+          isMaterial
+            ? "上传资料学习还没开放（第三阶段功能）。先看看 AI 热点学习舱或课程中心。"
+            : "找不到对应的学习内容。"
+        );
+        setLoading(false);
+        return;
+      }
+      setSourceInfo(info);
+      setLoading(false);
 
-    // 看是否有未结束的同一节会话
-    const existing = getCurrentSession();
-    if (existing && existing.lessonId === resolvedLessonId && !existing.endedAt) {
-      setMessages(existing.messages);
-      setActiveMentor(existing.activeMentor);
-      setMentorTurnCount(existing.mentorTurnCount);
-      return;
-    }
+      // 看是否有未结束的同一会话
+      const existing = getCurrentSession();
+      if (existing && existing.lessonId === info.lesson.id && !existing.endedAt) {
+        setMessages(existing.messages);
+        setActiveMentor(existing.activeMentor);
+        setMentorTurnCount(existing.mentorTurnCount);
+        return;
+      }
 
-    // 新开一节
-    const defaultMentor = Array.isArray(lesson.defaultMentor)
-      ? lesson.defaultMentor[0]
-      : lesson.defaultMentor;
+      // 新开一节
+      const defaultMentor = Array.isArray(info.lesson.defaultMentor)
+        ? info.lesson.defaultMentor[0]
+        : info.lesson.defaultMentor;
 
-    // 路由优先级 0: evidenceConflict
-    const useAdlerOpen = tr.aiLevel.evidenceConflict;
-    const openingMentor: MentorKey = useAdlerOpen ? "adler" : defaultMentor;
+      // 路由优先级 0: evidenceConflict
+      const useAdlerOpen = tr.aiLevel.evidenceConflict;
+      const openingMentor: MentorKey = useAdlerOpen ? "adler" : defaultMentor;
 
-    const session = startNewSession(resolvedLessonId, openingMentor);
-    setActiveMentor(openingMentor);
+      const session = startNewSession(info.lesson.id, openingMentor);
+      setActiveMentor(openingMentor);
 
-    // 构造一个临时 ctx 来生成开场（不调 LLM,本地构造）
-    const ctx: LearningContext = {
-      testResult: tr,
-      currentLesson: lesson,
-      messages: [],
-      outputHistory: getOutputHistory(),
-      activeMentor: openingMentor,
-      mentorTurnCount: 0,
-      isFirstTurnOfSession: true,
-    };
-    const opening = buildOpeningMessage(openingMentor, ctx);
-    const openingMsg: ChatMessage = {
-      id: `m-open-${Date.now()}`,
-      role: "mentor",
-      mentor: openingMentor,
-      content: opening,
-      createdAt: new Date().toISOString(),
-    };
-    session.messages = [openingMsg];
-    session.mentorTurnCount = 1;
-    setCurrentSession(session);
-    setMessages([openingMsg]);
-    setMentorTurnCount(1);
-  }, [router, lessonId]);
+      const ctx: LearningContext = {
+        testResult: tr,
+        currentLesson: info.lesson,
+        messages: [],
+        outputHistory: getOutputHistory(),
+        activeMentor: openingMentor,
+        mentorTurnCount: 0,
+        isFirstTurnOfSession: true,
+      };
+      const opening = buildOpeningMessage(openingMentor, ctx);
+      const openingMsg: ChatMessage = {
+        id: `m-open-${Date.now()}`,
+        role: "mentor",
+        mentor: openingMentor,
+        content: opening,
+        createdAt: new Date().toISOString(),
+      };
+      session.messages = [openingMsg];
+      session.mentorTurnCount = 1;
+      setCurrentSession(session);
+      setMessages([openingMsg]);
+      setMentorTurnCount(1);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [router, searchParams]);
 
   // 自动滚到底部
   useEffect(() => {
@@ -107,10 +195,7 @@ function LearnPageInner() {
   }, [messages, streamingText]);
 
   const handleSend = async () => {
-    if (!input.trim() || streaming || !testResult) return;
-    const resolvedLessonId = lessonId || recommendFirstLesson(testResult.aiLevel.level, testResult.recommendedPath);
-    const lesson = getLessonById(resolvedLessonId);
-    if (!lesson) return;
+    if (!input.trim() || streaming || !testResult || !sourceInfo) return;
 
     const userMsg: ChatMessage = {
       id: `u-${Date.now()}`,
@@ -127,7 +212,7 @@ function LearnPageInner() {
 
     const ctx: LearningContext = {
       testResult,
-      currentLesson: lesson,
+      currentLesson: sourceInfo.lesson,
       messages: nextMessages,
       outputHistory: getOutputHistory(),
       activeMentor,
@@ -157,7 +242,6 @@ function LearnPageInner() {
         const { done, value } = await reader.read();
         if (done) break;
         buffer += decoder.decode(value, { stream: true });
-        // SSE 帧按 \n\n 分隔
         const frames = buffer.split("\n\n");
         buffer = frames.pop() || "";
         for (const frame of frames) {
@@ -176,13 +260,12 @@ function LearnPageInner() {
               throw new Error(obj.message);
             }
           } catch (e) {
-            if (e instanceof SyntaxError) continue; // 跳过解析失败的帧
+            if (e instanceof SyntaxError) continue;
             throw e;
           }
         }
       }
 
-      // 流结束,把完整回复落到 messages
       const mentorMsg: ChatMessage = {
         id: `m-${Date.now()}`,
         role: "mentor",
@@ -193,12 +276,10 @@ function LearnPageInner() {
       const finalMessages = [...nextMessages, mentorMsg];
       setMessages(finalMessages);
 
-      // 更新连续性
       const nextTurnCount = respondingMentor === activeMentor ? mentorTurnCount + 1 : 1;
       setActiveMentor(respondingMentor);
       setMentorTurnCount(nextTurnCount);
 
-      // 持久化
       const cur = getCurrentSession();
       if (cur) {
         cur.messages = finalMessages;
@@ -217,11 +298,10 @@ function LearnPageInner() {
   };
 
   const handleSaveOutput = () => {
-    if (!outputText.trim() || !testResult) return;
-    const resolvedLessonId = lessonId || recommendFirstLesson(testResult.aiLevel.level, testResult.recommendedPath);
+    if (!outputText.trim() || !sourceInfo) return;
     appendOutput({
       id: `o-${Date.now()}`,
-      lessonId: resolvedLessonId,
+      lessonId: sourceInfo.lesson.id,
       type: "one_sentence",
       content: outputText.trim(),
       createdAt: new Date().toISOString(),
@@ -240,7 +320,7 @@ function LearnPageInner() {
     router.push("/profile");
   };
 
-  if (!testResult) {
+  if (loading) {
     return (
       <main className="container-narrow flex min-h-screen items-center justify-center">
         <p className="text-sm text-ink-mute">加载中…</p>
@@ -248,36 +328,41 @@ function LearnPageInner() {
     );
   }
 
-  const resolvedLessonId = lessonId || recommendFirstLesson(testResult.aiLevel.level, testResult.recommendedPath);
-  const lesson = getLessonById(resolvedLessonId);
-  if (!lesson) {
+  if (loadError || !sourceInfo) {
     return (
-      <main className="container-narrow flex min-h-screen items-center justify-center">
-        <p className="text-sm text-ink-mute">课程不存在</p>
+      <main className="container-narrow flex min-h-screen flex-col items-center justify-center py-16">
+        <div className="card max-w-md space-y-3 text-center">
+          <p className="text-sm font-medium">无法开始这节学习</p>
+          <p className="text-sm text-ink-soft">{loadError || "找不到对应内容"}</p>
+          <div className="flex justify-center gap-2 pt-2">
+            <Link href="/profile" className="btn-ghost text-sm">回学习中心</Link>
+            <Link href="/courses" className="btn-primary text-sm">看课程</Link>
+          </div>
+        </div>
       </main>
     );
   }
 
+  const lesson = sourceInfo.lesson;
+
   return (
     <main className="container-narrow flex min-h-screen flex-col py-6">
-      {/* Header */}
       <header className="mb-4 flex flex-col gap-2 border-b border-bg-warm/60 pb-4">
         <div className="flex items-center justify-between gap-2 text-sm">
-          <Link href="/profile" className="text-ink-mute hover:text-ink-soft">
-            ← 返回档案
+          <Link href={sourceInfo.backHref} className="text-ink-mute hover:text-ink-soft">
+            {sourceInfo.backLabel}
           </Link>
           <button onClick={handleEndSession} className="text-ink-mute hover:text-ink-soft">
             结束本节
           </button>
         </div>
-        <h1 className="text-lg font-medium leading-snug sm:text-xl">{lesson.title}</h1>
-        <p className="text-xs leading-relaxed text-ink-soft">{lesson.summary}</p>
-        <div className="flex flex-wrap items-center gap-2 text-xs text-ink-mute">
-          <span>核心：{lesson.keyConcepts.join(" / ")}</span>
+        <div className="flex items-center gap-2">
+          <span className="rounded bg-bg-warm px-1.5 py-0.5 text-xs text-ink-soft">{sourceInfo.sourceLabel}</span>
+          <h1 className="text-lg font-medium leading-snug sm:text-xl">{lesson.title}</h1>
         </div>
+        <p className="line-clamp-2 text-xs leading-relaxed text-ink-soft">{lesson.summary}</p>
       </header>
 
-      {/* Messages */}
       <div className="flex-1 space-y-4 overflow-y-auto pb-4">
         {messages.map((msg) => (
           <MessageBubble key={msg.id} msg={msg} />
@@ -308,7 +393,6 @@ function LearnPageInner() {
         <div ref={chatEndRef} />
       </div>
 
-      {/* Output sink hint */}
       <div className="mb-3 rounded-lg border border-moss/40 bg-moss/5 px-4 py-2.5 text-xs leading-relaxed text-ink-soft">
         <div className="flex items-start justify-between gap-3">
           <span>
@@ -324,7 +408,6 @@ function LearnPageInner() {
         </div>
       </div>
 
-      {/* Input */}
       <div className="space-y-2">
         <textarea
           value={input}
@@ -351,7 +434,6 @@ function LearnPageInner() {
         </div>
       </div>
 
-      {/* Output Modal */}
       {showOutputModal && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-ink/30 sm:items-center">
           <div className="w-full max-w-md space-y-4 rounded-t-2xl bg-bg p-6 shadow-xl sm:rounded-2xl">
@@ -372,10 +454,7 @@ function LearnPageInner() {
                   autoFocus
                 />
                 <div className="flex justify-end gap-2">
-                  <button
-                    onClick={() => setShowOutputModal(false)}
-                    className="btn-ghost text-sm"
-                  >
+                  <button onClick={() => setShowOutputModal(false)} className="btn-ghost text-sm">
                     先放一放
                   </button>
                   <button
@@ -402,7 +481,13 @@ function MessageBubble({ msg, streaming }: { msg: ChatMessage; streaming?: boole
       <div
         className={cn(
           "flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-xs font-medium",
-          isUser ? "bg-bg-warm text-ink-soft" : msg.mentor === "karpathy" ? "bg-accent text-white" : msg.mentor === "qian" ? "bg-moss text-white" : "bg-accent-soft text-white"
+          isUser
+            ? "bg-bg-warm text-ink-soft"
+            : msg.mentor === "karpathy"
+            ? "bg-accent text-white"
+            : msg.mentor === "qian"
+            ? "bg-moss text-white"
+            : "bg-accent-soft text-white"
         )}
       >
         {isUser ? "你" : msg.mentor ? MENTOR_NAMES[msg.mentor].charAt(0) : "?"}
@@ -413,10 +498,8 @@ function MessageBubble({ msg, streaming }: { msg: ChatMessage; streaming?: boole
         )}
         <div
           className={cn(
-            "rounded-2xl px-4 py-2.5 text-sm leading-relaxed",
-            isUser
-              ? "bg-accent text-white"
-              : "bg-bg-subtle/70 text-ink",
+            "whitespace-pre-wrap rounded-2xl px-4 py-2.5 text-sm leading-relaxed",
+            isUser ? "bg-accent text-white" : "bg-bg-subtle/70 text-ink",
             streaming && "animate-pulse"
           )}
         >
@@ -428,7 +511,6 @@ function MessageBubble({ msg, streaming }: { msg: ChatMessage; streaming?: boole
 }
 
 export default function LearnPage() {
-  // useSearchParams 必须在 Suspense 边界内（Next.js 15 要求）
   return (
     <Suspense
       fallback={
