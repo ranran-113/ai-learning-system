@@ -268,7 +268,74 @@ v主版本.次版本.修订版本
 
 ---
 
-## v0.1.4 - 待开发
+## v0.1.4 - Supabase 邮箱登录 + harness 升级 #1 + #6
+
+日期：2026-05-12
+
+### 已完成 —— 主线 (Supabase 邮箱登录 + 数据云端同步)
+
+- ✅ 安装 `@supabase/supabase-js` + `@supabase/ssr`
+- ✅ `lib/supabase/client.ts`：浏览器端 client
+- ✅ `lib/supabase/server.ts`：服务端 client + admin client
+- ✅ `middleware.ts`：每个请求维护 auth session cookie
+- ✅ `supabase/schema.sql`：用户跑一次的建表 SQL（profiles + outputs + learning_sessions + RLS + 触发器）
+- ✅ `/login` 页：magic link 登录（无密码,邮件链接）
+- ✅ `/auth/callback` 路由：处理 magic link 回调
+- ✅ `lib/sync/sync.ts`：`syncLocalToSupabase()` + `syncSupabaseToLocal()` + 用户态查询
+- ✅ `/profile` 加：登录态显示、邮箱登录入口、手动同步按钮、退出登录、首次登录后自动双向同步、未登录时数据丢失提示
+
+### 已完成 —— Harness 升级
+
+#### #6 Prompt caching 优化
+
+- ✅ `lib/agents/builders.ts` 重写：system prompt 按"稳定前缀"组织
+  - 顺序：[最稳定] persona → [次稳定] lesson → [次稳定] profile → [动态] outputs + turn count
+  - DeepSeek 自动 prefix caching 在同会话内最长公共前缀命中
+  - 预期：同一节课内,persona + lesson 部分缓存,每轮便宜约 80%
+
+#### #1 输出校验 + 重试
+
+- ✅ `validateMentorReply(mentor, content)`：检查字数硬上限 + Karpathy 必须含问号
+- ✅ `buildRewriteRequest()`：违规时生成"请用更紧约束重新说一遍"的 follow-up messages
+- ✅ `lib/langgraph/orchestrate.ts` 重构为 AsyncGenerator,流式后追加校验:
+  - 不违规 → 直接 done
+  - 违规 → 发 `rethink` 帧 → 非流式调 LLM 重写 → 发 `replace` 帧带新内容
+- ✅ `/learn` 页处理 `rethink` / `replace` 帧:UI 显示"…(调整一下表达)…",再用重写版本替换
+- ✅ `app/api/chat/route.ts` 重构为简单转发 generator 帧
+
+### 已完成 —— 文档
+
+- ✅ 新增 `HARNESS.md`：7 个 harness 升级项的完整状态追踪 + 触发条件 + 实现方案 + 为什么不现在做的理由
+- ✅ `CLAUDE.md` §3 必读清单加入 `HARNESS.md` + `PHASE_LAUNCH.md`
+- ✅ `README.md` §7 项目核心文件清单同步
+
+### 用户需要做的（首次部署后必须做）
+
+1. **在 Supabase Dashboard 跑 schema.sql**：项目 → SQL Editor → 新查询 → 粘贴 `supabase/schema.sql` 整个文件 → Run。会建 3 张表 + RLS + 触发器。
+2. **在 Vercel 添加 3 个 Supabase 环境变量**：
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+   - `SUPABASE_SERVICE_ROLE_KEY`（标 Sensitive）
+3. Vercel 重新部署一次让环境变量生效
+
+### Phase 2 harness 余项追踪
+
+详见 `HARNESS.md` §3:
+
+- #2 Few-shot 示例 → v0.1.5 计划（用户使用后收集真实样例）
+- #3 上下文长度管理 → 触发后做（会话超 30 轮）
+- #4 结构化次态决策 → MVP 后做（需先看用户使用模式）
+- #5 工具调用 → Supabase 接好+有真实数据后做（本版本已铺好数据源）
+- #7 自动评估 harness → MVP 上线后做
+
+### 下一步（v0.1.5）
+
+- 跑一些真实学习对话,收集 mentor 回复样例 → #2 Few-shot
+- 视用户反馈决定是否做 /materials 上传资料拆课
+
+---
+
+## v0.1.4 - 待开发（已被本版本替代）
 
 计划内容：
 

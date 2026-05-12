@@ -237,6 +237,7 @@ function LearnPageInner() {
       let buffer = "";
       let collected = "";
       let respondingMentor: MentorKey = activeMentor;
+      let didRewrite = false;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -255,6 +256,14 @@ function LearnPageInner() {
               setStreamingMentor(respondingMentor);
             } else if (obj.type === "chunk") {
               collected += obj.content;
+              setStreamingText(collected);
+            } else if (obj.type === "rethink") {
+              // 校验失败,即将重写
+              didRewrite = true;
+              setStreamingText(collected + "\n\n…(调整一下表达)…");
+            } else if (obj.type === "replace") {
+              // 用重写版本替换
+              collected = obj.content;
               setStreamingText(collected);
             } else if (obj.type === "error") {
               throw new Error(obj.message);

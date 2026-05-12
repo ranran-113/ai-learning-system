@@ -47,6 +47,8 @@ CHANGELOG.md   # 版本记录
 LESSONS.md     # MVP 12 节微课完整内容 + 36 个 Phase 2 延伸课题
 QUESTIONS.md   # 15 题联合测试完整题目 + 指标映射
 MENTORS.md     # 三导师 System Prompts + 路由规则
+HARNESS.md     # Agent Harness 工程升级路线（7 个升级项 + 当前状态）
+PHASE_LAUNCH.md # 公开上线前必须完成的 8 件事清单
 ```
 
 按任务类型优先阅读：
@@ -56,6 +58,8 @@ MENTORS.md     # 三导师 System Prompts + 路由规则
 - 涉及课程内容、新增/修改课程 → 优先 `LESSONS.md`
 - 涉及测试题、评分逻辑、画像分类 → 优先 `QUESTIONS.md` + `TECH.md` §19-20
 - 涉及导师人格、System Prompt、路由规则 → 优先 `MENTORS.md` + `TECH.md` §8
+- **涉及 agent 能力升级、harness、tool use、evaluation** → 必读 `HARNESS.md`
+- 涉及公开上线前准备 → `PHASE_LAUNCH.md`
 - 版本发布 → 必须更新 `CHANGELOG.md`
 
 ---

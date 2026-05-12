@@ -190,6 +190,8 @@ CHANGELOG.md    # 版本记录
 LESSONS.md      # MVP 12 节微课完整内容 + 36 个 Phase 2 延伸课题
 QUESTIONS.md    # 15 题联合测试完整题目 + 指标映射
 MENTORS.md      # 三导师 System Prompts + 路由规则
+HARNESS.md      # Agent Harness 工程升级路线（7 个升级项 + 状态）
+PHASE_LAUNCH.md # 公开上线前必须完成的清单
 .env.example    # 环境变量示例
 ```
 

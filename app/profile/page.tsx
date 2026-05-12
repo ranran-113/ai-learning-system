@@ -1,30 +1,90 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { lsGet, lsSet, lsRemove, LS_KEYS, cn } from "@/lib/utils";
 import { MENTOR_NAMES } from "@/types/mentor";
 import { LEVEL_NAMES } from "@/types/profile";
 import { recommendFirstLesson, getLessonById } from "@/lib/courses/built-in-courses";
 import type { TestResult } from "@/types/profile";
+import { getCurrentUser, signOut, syncLocalToSupabase, syncSupabaseToLocal } from "@/lib/sync/sync";
 
-export default function ProfilePage() {
+function ProfilePageInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [result, setResult] = useState<TestResult | null>(null);
   const [adjustedDelta, setAdjustedDelta] = useState<number>(0);
   const [hasAdjusted, setHasAdjusted] = useState<boolean>(false);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [syncStatus, setSyncStatus] = useState<"idle" | "syncing" | "done" | "error">("idle");
+  const [syncMsg, setSyncMsg] = useState("");
 
   useEffect(() => {
-    const stored = lsGet<TestResult>(LS_KEYS.TEST_RESULT);
     const adjusted = lsGet<boolean>(LS_KEYS.USER_LEVEL_ADJUSTED);
-    if (!stored) {
-      router.replace("/onboarding");
-      return;
-    }
-    setResult(stored);
     setHasAdjusted(adjusted === true);
+
+    (async () => {
+      const user = await getCurrentUser();
+      if (user) {
+        setUserEmail(user.email || null);
+        // 登录后自动从云端拉取（覆盖 localStorage）
+        const justLoggedIn = searchParams.get("just_logged_in") === "1";
+        if (justLoggedIn) {
+          setSyncStatus("syncing");
+          // 第一次登录：先推本地到云,再拉云回本地（合并策略：先推后拉）
+          const pushResult = await syncLocalToSupabase();
+          const pullResult = await syncSupabaseToLocal();
+          if (pushResult.errors.length || pullResult.errors.length) {
+            setSyncStatus("error");
+            setSyncMsg([...pushResult.errors, ...pullResult.errors].join("；"));
+          } else {
+            setSyncStatus("done");
+            setSyncMsg(`同步完成：推 ${pushResult.pushed.outputs} 条沉淀, 拉 ${pullResult.pulled.outputs} 条`);
+            setTimeout(() => setSyncStatus("idle"), 4000);
+          }
+          // 把 just_logged_in 参数清掉
+          router.replace("/profile");
+        } else {
+          // 已登录的回访：直接拉云
+          const pullResult = await syncSupabaseToLocal();
+          if (pullResult.pulled.profile) {
+            // 重新加载 result
+            const stored = lsGet<TestResult>(LS_KEYS.TEST_RESULT);
+            if (stored) setResult(stored);
+          }
+        }
+      }
+
+      const stored = lsGet<TestResult>(LS_KEYS.TEST_RESULT);
+      if (!stored) {
+        router.replace("/onboarding");
+        return;
+      }
+      setResult(stored);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router]);
+
+  const handleSignOut = async () => {
+    if (!confirm("退出登录吗？你的数据已存在云端,下次登录还会回来。")) return;
+    await signOut();
+    setUserEmail(null);
+    router.refresh();
+  };
+
+  const handleManualSync = async () => {
+    setSyncStatus("syncing");
+    const result = await syncLocalToSupabase();
+    if (result.errors.length > 0) {
+      setSyncStatus("error");
+      setSyncMsg(result.errors.join("；"));
+    } else {
+      setSyncStatus("done");
+      setSyncMsg(`已同步：${result.pushed.outputs} 条沉淀, ${result.pushed.sessions} 个会话`);
+      setTimeout(() => setSyncStatus("idle"), 3000);
+    }
+  };
 
   if (!result) {
     return (
@@ -65,10 +125,52 @@ export default function ProfilePage() {
         <Link href="/" className="text-sm text-ink-mute hover:text-ink-soft">
           ← 回首页
         </Link>
-        <button onClick={handleRetake} className="text-sm text-ink-mute hover:text-ink-soft">
-          重新测试
-        </button>
+        <div className="flex items-center gap-3 text-sm text-ink-mute">
+          {userEmail ? (
+            <>
+              <span title={userEmail} className="hidden sm:inline max-w-[160px] truncate">{userEmail}</span>
+              <button onClick={handleManualSync} className="hover:text-ink-soft" disabled={syncStatus === "syncing"}>
+                {syncStatus === "syncing" ? "同步中…" : "同步"}
+              </button>
+              <button onClick={handleSignOut} className="hover:text-ink-soft">
+                退出
+              </button>
+            </>
+          ) : (
+            <Link href="/login" className="rounded border border-accent/40 px-2.5 py-1 text-xs text-accent hover:bg-accent/10">
+              邮箱登录 / 保存进度
+            </Link>
+          )}
+          <button onClick={handleRetake} className="hover:text-ink-soft">
+            重新测试
+          </button>
+        </div>
       </header>
+
+      {/* sync 状态横条 */}
+      {syncStatus === "done" && (
+        <div className="mb-4 rounded-lg border border-moss/40 bg-moss/5 px-3 py-2 text-xs text-moss">
+          ✓ {syncMsg}
+        </div>
+      )}
+      {syncStatus === "error" && (
+        <div className="mb-4 rounded-lg border border-accent/40 bg-accent/5 px-3 py-2 text-xs text-ink-soft">
+          同步出错：{syncMsg}
+        </div>
+      )}
+
+      {/* 未登录时的轻量提示 */}
+      {!userEmail && result && (
+        <div className="mb-4 rounded-lg border border-accent/40 bg-accent/5 px-4 py-3 text-sm">
+          <p className="leading-relaxed">
+            <span className="font-medium">你的数据还只存在这个浏览器里</span> ——
+            换设备 / 清缓存 就会丢。
+          </p>
+          <Link href="/login" className="mt-2 inline-block text-xs text-accent hover:underline">
+            留个邮箱保存 →
+          </Link>
+        </div>
+      )}
 
       <section className="space-y-6">
         {/* 标题 */}
@@ -221,6 +323,20 @@ export default function ProfilePage() {
         </details>
       </section>
     </main>
+  );
+}
+
+export default function ProfilePage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="container-narrow flex min-h-screen items-center justify-center">
+          <p className="text-sm text-ink-mute">加载中…</p>
+        </main>
+      }
+    >
+      <ProfilePageInner />
+    </Suspense>
   );
 }
 
