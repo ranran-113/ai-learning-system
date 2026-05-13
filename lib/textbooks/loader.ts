@@ -5,7 +5,7 @@ import type { ChapterContent, TextbookId } from "./types";
 // 列出可用的章节 id（启动时不读内容,只看哪些 json 存在）
 // 这个数组要手动维护或在构建脚本里生成
 export const AVAILABLE_CHAPTERS: Record<TextbookId, string[]> = {
-  ai: ["c01"], // v0.2 起逐章添加。已写完的章节列在这里
+  ai: ["c01", "c02", "c03", "c04", "c05"], // v0.2 起逐章添加。已写完的章节列在这里
   aipm: [],
 };
 
