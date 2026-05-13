@@ -401,6 +401,57 @@ v主版本.次版本.修订版本
 
 ---
 
+## v0.2.0 - 教材框架 + AI 通识 C1（质量样板）
+
+日期：2026-05-13
+
+### 重大变化:启动教材专项
+
+- 产品定位升级：原 12 节互动课为 MVP 简化版,现在升级为**两本完整教材 32 章**,每章「教程版（读）+ 对话版（学）」双模式
+- 12 节精选课变成"推荐学习路径"标记
+
+### 写作策略转向:Claude 直接撰写
+
+- **试错过 DeepSeek 一次性生成 16 章** → 质量"够用但不卓越",归档到 `_deepseek_v0_archive/` 仅作参考
+- **新策略**: Claude (Opus 4.5+) 直接撰写,每轮 3-4 章高质量成稿,用户审 + 加料
+- 优势:产品哲学一致、跨章呼应、风格统一、跨技术流派批判性视角
+
+### 已完成
+
+- ✅ `lib/textbooks/types.ts` 教材类型定义（章节正文 + 互动配置）
+- ✅ `lib/textbooks/registry.ts` 完整 32 章 outline（AI 通识 16 + AIPM 16）
+- ✅ `lib/textbooks/loader.ts` 章节加载器 + 可用性追踪
+- ✅ `lib/textbooks/ai/c01.json`:**AI 通识 C1「AI 不是魔法，也不是电影：60 年简史」由 Claude 撰写完成,5400 字**
+  - 反常识开场（"AI 是 70 岁的概念"）
+  - 真实人名 / 时间 / 引语（McCarthy / Minsky / AlexNet / Hinton / Sutskever 等）
+  - 跨流派批判性视角（每一波 AI 大热都说"这次不一样"）
+  - 跨章呼应（结尾自然引向 C2"猜下一个字"）
+- ✅ `/textbooks` 两本教材入口页
+- ✅ `/textbooks/[bookId]` 单本教材目录（按 Part 分组,每章带"已成稿/即将上线"标记）
+- ✅ `/textbooks/[bookId]/[chapterId]` 章节阅读页（react-markdown 渲染 + 自定义中文排版样式）
+- ✅ 章节末尾「让导师讲解」CTA → `/learn?source=textbook&id=<book>-<chapter>`
+- ✅ `/learn` 支持 source=textbook,把章节合成 lesson 进入对话模式
+- ✅ 侧边栏新增「📖 教材」入口
+- ✅ react-markdown + remark-gfm 装入,中文阅读样式（粗体高亮 / blockquote / 标题分级）
+- ✅ DeepSeek 生成的 16 章 v0 草稿归档到 `_deepseek_v0_archive/`（不删,留作风格对比）
+
+### 待后续轮次
+
+- v0.2.1: AI 通识 C2-C5（4 章）
+- v0.2.2: AI 通识 C6-C9（4 章）
+- v0.2.3: AI 通识 C10-C13（4 章）
+- v0.2.4: AI 通识 C14-C16 + 收尾（3 章 + AI 通识全本完成）
+- v0.3.0-v0.3.4: AIPM 16 章
+- v0.4: 全 32 章可在 /textbooks 全本阅读 + 全章可对话学习
+
+### 用户需要做的
+
+1. **推送代码**: `cd /Users/maiyatang2017/学习系统 && git push`
+2. **试读 C1**,判断质量是否达到「最伟大教材」标准
+3. **反馈**:风格 / 节奏 / 深度 / 细节,任何想改的告诉我
+
+---
+
 ## v0.1.6.1 - UI 修复 + 热点新版布局 + 论文导读 15 篇
 
 日期：2026-05-13

@@ -26,4 +26,7 @@ export type BuiltInLesson = {
   extendsConceptId?: string;
   nextRecommendedLessonIds?: string[];
   extensionRoadmap: ExtensionRoadmapItem[];
+
+  // v0.2 教材模式:章节正文内容（markdown）。互动课没有此字段
+  tutorialContent?: string;
 };

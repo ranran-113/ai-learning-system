@@ -9,7 +9,7 @@ import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { getCurrentUser, signOut } from "@/lib/sync/sync";
 
-export type NavKey = "home" | "courses" | "hot" | "papers" | "materials" | "records" | "levels" | "settings";
+export type NavKey = "home" | "courses" | "textbooks" | "hot" | "papers" | "materials" | "records" | "levels" | "settings";
 
 type NavItem = {
   key: NavKey;
@@ -20,6 +20,7 @@ type NavItem = {
 
 const NAV_ITEMS: NavItem[] = [
   { key: "home", label: "学习中心", href: "/profile", icon: "🏠" },
+  { key: "textbooks", label: "教材", href: "/textbooks", icon: "📖" },
   { key: "courses", label: "课程中心", href: "/courses", icon: "📚" },
   { key: "hot", label: "AI 热点学习舱", href: "/hot", icon: "🔥" },
   { key: "papers", label: "论文导读", href: "/papers", icon: "📜" },

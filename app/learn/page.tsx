@@ -78,6 +78,38 @@ async function loadSourceInfo(
     };
   }
 
+  if (source === "textbook" && id) {
+    // 形如 ai-c01 / aipm-c03
+    const [bookId, chapterId] = id.split("-");
+    if (bookId !== "ai" && bookId !== "aipm") return null;
+    const { getOutline } = await import("@/lib/textbooks/registry");
+    const { loadChapter } = await import("@/lib/textbooks/loader");
+    const outline = getOutline(bookId, chapterId);
+    if (!outline) return null;
+    const content = await loadChapter(bookId, chapterId);
+    if (!content) return null;
+    return {
+      lesson: {
+        id: `textbook-${id}`,
+        courseId: bookId === "ai" ? "ai-textbook" : "aipm-textbook",
+        title: content.title,
+        category: bookId === "ai" ? "ai_tech" : "aipm",
+        targetLevelMin: outline.targetLevelMin,
+        targetLevelMax: outline.targetLevelMax,
+        defaultMentor: content.defaultMentor,
+        summary: outline.description,
+        keyConcepts: content.keyConcepts,
+        socraticQuestions: content.socraticQuestions,
+        outputTask: content.outputTask,
+        extensionRoadmap: [],
+        tutorialContent: content.markdown,
+      },
+      sourceLabel: bookId === "ai" ? "AI 通识教材" : "AIPM 教材",
+      backHref: `/textbooks/${bookId}/${chapterId}`,
+      backLabel: "← 回到教材",
+    };
+  }
+
   if (source === "paper" && id) {
     // v0.1.6.1: 论文导读 —— 用 curated paper 合成 lesson
     const { getPaperById, CATEGORY_LABELS } = await import("@/lib/papers/papers");
