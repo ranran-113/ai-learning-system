@@ -1,13 +1,19 @@
-// GET /api/hot —— 返回精选热点列表（服务端调 AI HOT,带兜底和缓存）
+// GET /api/hot —— 精选 / 全部动态 列表（支持 mode + category + sourceFilter）
 import { NextRequest } from "next/server";
-import { fetchSelectedHotItems } from "@/lib/hot/client";
+import { fetchHotItems } from "@/lib/hot/client";
+import type { HotMode, HotCategory, HotSourceFilter } from "@/lib/hot/client";
 
 export const runtime = "nodejs";
-export const revalidate = 300; // 5 分钟缓存
+export const revalidate = 300;
 
 export async function GET(req: NextRequest) {
-  const limit = Number(req.nextUrl.searchParams.get("limit")) || 20;
-  const result = await fetchSelectedHotItems(limit);
+  const sp = req.nextUrl.searchParams;
+  const mode = (sp.get("mode") || "selected") as HotMode;
+  const category = (sp.get("category") || "all") as HotCategory;
+  const sourceFilter = (sp.get("source") || "all") as HotSourceFilter;
+  const limit = Number(sp.get("limit")) || 30;
+
+  const result = await fetchHotItems({ mode, category, sourceFilter, limit });
   return new Response(JSON.stringify(result), {
     status: 200,
     headers: { "Content-Type": "application/json" },

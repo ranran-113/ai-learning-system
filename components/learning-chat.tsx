@@ -75,6 +75,10 @@ export function LearningChat({
   // 播放
   const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(null);
 
+  // 进阶下拉
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [showTaskHint, setShowTaskHint] = useState(false);
+
   const chatEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -465,83 +469,161 @@ export function LearningChat({
         <div ref={chatEndRef} />
       </div>
 
-      {/* 输出任务提示 */}
-      <div className="mt-3 rounded-lg border border-moss/40 bg-moss/5 px-3 py-2 text-xs leading-relaxed text-ink-soft">
-        <div className="flex items-start justify-between gap-3">
-          <span>
-            <strong className="font-medium">本节输出任务：</strong>
-            {lesson.outputTask}
-          </span>
-          <button
-            onClick={openSedimentModal}
-            className="flex-shrink-0 rounded border border-moss/60 px-2.5 py-1 text-xs text-moss hover:bg-moss/10"
-          >
-            完成沉淀
-          </button>
-        </div>
-      </div>
+      {/* ===== 悬浮胶囊输入栏 ===== */}
+      <div className="sticky bottom-0 left-0 right-0 z-10 -mx-2 mt-3">
+        {/* 上方淡出渐变,让滚动消息不直接顶到输入栏 */}
+        <div className="pointer-events-none h-6 bg-gradient-to-t from-bg via-bg/95 to-bg/0" />
 
-      {/* 附件预览条 */}
-      {attachment && (
-        <div className="mt-2 flex items-center justify-between gap-2 rounded-lg border border-accent/30 bg-accent/5 px-3 py-1.5 text-xs">
-          <span className="line-clamp-1 text-ink-soft">📎 {attachment.name}（{Math.round(attachment.content.length / 100) / 10}k 字符）</span>
-          <button onClick={() => setAttachment(null)} className="text-ink-mute hover:text-accent">移除</button>
-        </div>
-      )}
-
-      {/* 输入栏 */}
-      <div className="mt-3 flex items-end gap-2">
-        {/* + 文件 */}
-        <button
-          onClick={() => fileInputRef.current?.click()}
-          disabled={streaming}
-          className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg border border-bg-warm/70 text-lg text-ink-soft transition hover:border-accent/40 hover:bg-bg-subtle disabled:opacity-50"
-          title="上传文件（.txt / .md，作为本轮上下文）"
-        >
-          +
-        </button>
-        <input ref={fileInputRef} type="file" accept=".txt,.md,.markdown" onChange={handleFilePick} className="hidden" />
-
-        {/* 文本输入 */}
-        <textarea
-          ref={textareaRef}
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-              e.preventDefault();
-              handleSend();
-            }
-          }}
-          placeholder={listening ? "正在听…（再点麦克风停止）" : "跟导师说点什么…（⌘/Ctrl + Enter 发送）"}
-          disabled={streaming}
-          rows={2}
-          className="min-h-[2.5rem] flex-1 resize-none rounded-lg border border-bg-warm/70 bg-white/60 p-2.5 text-sm leading-relaxed text-ink placeholder:text-ink-mute focus:border-accent/40 focus:outline-none disabled:opacity-50"
-        />
-
-        {/* 听写 */}
-        <button
-          onClick={listening ? stopListening : startListening}
-          disabled={streaming}
-          className={cn(
-            "flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg border transition disabled:opacity-50",
-            listening
-              ? "border-accent bg-accent text-white animate-pulse"
-              : "border-bg-warm/70 text-ink-soft hover:border-accent/40 hover:bg-bg-subtle"
+        <div className="bg-bg px-2 pb-2">
+          {/* 附件预览条 */}
+          {attachment && (
+            <div className="mb-2 flex items-center justify-between gap-2 rounded-lg border border-accent/30 bg-accent/5 px-3 py-1.5 text-xs">
+              <span className="line-clamp-1 text-ink-soft">
+                📎 {attachment.name}（{Math.round(attachment.content.length / 100) / 10}k 字符）
+              </span>
+              <button onClick={() => setAttachment(null)} className="flex-shrink-0 text-ink-mute hover:text-accent">
+                移除
+              </button>
+            </div>
           )}
-          title={listening ? "停止听写" : "语音听写转文字（中文）"}
-        >
-          🎙
-        </button>
 
-        {/* 发送 */}
-        <button
-          onClick={handleSend}
-          disabled={!input.trim() || streaming}
-          className="h-10 flex-shrink-0 rounded-lg bg-accent px-4 text-sm font-medium text-white transition hover:bg-accent-deep disabled:opacity-50"
-        >
-          {streaming ? "想中…" : "发送"}
-        </button>
+          {/* 任务提示气泡（点击 进阶 → 看任务 时浮现） */}
+          {showTaskHint && (
+            <div className="mb-2 flex items-start justify-between gap-2 rounded-xl border border-moss/40 bg-moss/5 px-3 py-2 text-xs leading-relaxed text-ink-soft">
+              <span>
+                <strong className="font-medium text-moss">本节输出任务：</strong>
+                {lesson.outputTask}
+              </span>
+              <button onClick={() => setShowTaskHint(false)} className="flex-shrink-0 text-ink-mute hover:text-ink-soft">
+                ✕
+              </button>
+            </div>
+          )}
+
+          {/* 胶囊输入栏主体 */}
+          <div className="rounded-3xl border border-bg-warm/70 bg-white shadow-md transition focus-within:shadow-lg">
+            <div className="flex items-end gap-1 px-2 py-1.5">
+              {/* + 文件 */}
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={streaming}
+                className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full text-lg text-ink-soft transition hover:bg-bg-subtle disabled:opacity-50"
+                title="上传 .txt / .md（作为本轮上下文）"
+              >
+                +
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".txt,.md,.markdown"
+                onChange={handleFilePick}
+                className="hidden"
+              />
+
+              {/* 文本输入 */}
+              <textarea
+                ref={textareaRef}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                    e.preventDefault();
+                    handleSend();
+                  }
+                }}
+                placeholder={
+                  listening
+                    ? "正在听…（再点麦克风停止）"
+                    : "跟导师说点什么…（⌘/Ctrl + Enter 发送）"
+                }
+                disabled={streaming}
+                rows={1}
+                className="min-h-[2.25rem] max-h-32 flex-1 resize-none bg-transparent px-1 py-2 text-sm leading-relaxed text-ink placeholder:text-ink-mute focus:outline-none disabled:opacity-50"
+              />
+
+              {/* 进阶 dropdown */}
+              <div className="relative flex-shrink-0">
+                <button
+                  onClick={() => setAdvancedOpen(!advancedOpen)}
+                  disabled={streaming}
+                  className="flex h-9 items-center gap-0.5 rounded-full px-2.5 text-xs text-ink-soft transition hover:bg-bg-subtle disabled:opacity-50"
+                  title="更多操作"
+                >
+                  进阶 <span className="text-[10px]">▾</span>
+                </button>
+                {advancedOpen && (
+                  <>
+                    <div className="fixed inset-0 z-20" onClick={() => setAdvancedOpen(false)} />
+                    <div className="absolute bottom-full right-0 z-30 mb-2 w-60 overflow-hidden rounded-xl border border-bg-warm/70 bg-white shadow-lg">
+                      <button
+                        onClick={() => {
+                          setAdvancedOpen(false);
+                          openSedimentModal();
+                        }}
+                        className="block w-full border-b border-bg-warm/40 px-3 py-2.5 text-left text-sm transition hover:bg-bg-subtle"
+                      >
+                        <div className="font-medium">完成沉淀</div>
+                        <div className="mt-0.5 text-xs text-ink-mute">把刚学到的存进知识库</div>
+                      </button>
+                      <button
+                        onClick={() => {
+                          setAdvancedOpen(false);
+                          setShowTaskHint(true);
+                        }}
+                        className="block w-full border-b border-bg-warm/40 px-3 py-2.5 text-left text-sm transition hover:bg-bg-subtle"
+                      >
+                        <div className="font-medium">看本节任务</div>
+                        <div className="mt-0.5 line-clamp-1 text-xs text-ink-mute">{lesson.outputTask}</div>
+                      </button>
+                      <button
+                        onClick={() => {
+                          setAdvancedOpen(false);
+                          handleEndSession();
+                        }}
+                        className="block w-full px-3 py-2.5 text-left text-sm transition hover:bg-bg-subtle"
+                      >
+                        <div className="font-medium">暂停本节</div>
+                        <div className="mt-0.5 text-xs text-ink-mute">会自动归档，下次进入续学</div>
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* 听写 */}
+              <button
+                onClick={listening ? stopListening : startListening}
+                disabled={streaming}
+                className={cn(
+                  "flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full transition disabled:opacity-50",
+                  listening ? "bg-accent text-white animate-pulse" : "text-ink-soft hover:bg-bg-subtle"
+                )}
+                title={listening ? "停止听写" : "语音听写（中文）"}
+              >
+                🎙
+              </button>
+
+              {/* 发送（圆形）*/}
+              <button
+                onClick={handleSend}
+                disabled={!input.trim() || streaming}
+                className={cn(
+                  "flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full text-base transition",
+                  input.trim() && !streaming
+                    ? "bg-accent text-white hover:bg-accent-deep"
+                    : "bg-bg-warm text-ink-mute"
+                )}
+                title="发送（⌘/Ctrl + Enter）"
+              >
+                {streaming ? (
+                  <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-current" />
+                ) : (
+                  "↑"
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* 沉淀 modal（混合模式: AI 起草 + 用户编辑）*/}

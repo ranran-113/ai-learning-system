@@ -401,6 +401,59 @@ v主版本.次版本.修订版本
 
 ---
 
+## v0.1.6.1 - UI 修复 + 热点新版布局 + 论文导读 15 篇
+
+日期：2026-05-13
+
+### 已完成 —— 3 件事
+
+#### 1. UI 修复:悬浮胶囊输入框
+
+- ✅ 输入栏改为 `sticky bottom-0` + 圆角胶囊 + 白底阴影
+- ✅ 移除"本节输出任务"独立横条
+- ✅ 新增**"进阶 ▼"下拉**菜单：完成沉淀 / 看本节任务 / 暂停本节
+- ✅ 发送按钮改为圆形（参考豆包 / 主流 AI 产品）
+- ✅ 上方加 fade 渐变，让滚动消息不直接顶到输入栏
+
+#### 2. /hot 热点布局重构（沿用 AI HOT 站结构）
+
+- ✅ **三大 tab**：精选 / 全部 AI 动态 / AI 日报
+- ✅ 精选 tab：分类筛选（全部 / 模型 / 产品 / 行业 / 论文 / 技巧）
+- ✅ 全部 AI 动态 tab：双层筛选（来源 + 分类）
+- ✅ AI 日报 tab：按月分组的日期归档列表
+- ✅ `lib/hot/client.ts` 扩展：支持 `mode` / `category` / `sourceFilter` 参数 + `fetchDailyDigests`
+- ✅ 新增 `/api/hot/daily` 端点
+- ✅ 全局搜索 + 兜底显示（API 失败时本地示例）
+
+#### 3. 论文导读 Phase 1（15 篇手动 curate）
+
+- ✅ `lib/papers/papers.ts` curated 15 篇 AIPM 必读论文：
+  - 基础模型：Attention / GPT-3 / GPT-4 / Claude 3
+  - 对齐与微调：InstructGPT / Constitutional AI / DPO
+  - 推理与提示：CoT / o1
+  - Agent 与工具：ReAct
+  - RAG 与知识：RAG (Lewis 2020)
+  - 多模态：Sora
+  - 效率与开源：Llama 2 / Mixtral / DeepSeek-V3
+- ✅ 每篇含：标题 / 作者 / 年份 / 类别 / 中文摘要 / **为什么 AIPM 该读** / 核心贡献 / 推荐导师 / 难度
+- ✅ `/papers` 列表页：分类筛选 + 搜索 + 难度标签
+- ✅ `/papers/[id]` 详情页：完整摘要 + AIPM 视角 + 「让卡帕西讲解」CTA
+- ✅ `/learn?source=paper&id=xxx` 支持：把论文合成为可对话学习的 lesson
+- ✅ 侧边栏新增「📜 论文导读」入口
+
+### 用户需要做的
+
+1. **推送代码**：`cd /Users/maiyatang2017/学习系统 && git push`
+
+### 下一步（v0.2 教材专项）
+
+- 教材待启动：AI 通识 16 章 + AIPM 16 章 = 32 章 ≈ 14-18 万字
+- 写作策略：v0 LLM 全本生成（3-5 天）→ 用户按章审 / 加料 → v1 / v2 迭代
+- 教材每章配套互动学习模式（教程 tab + 对话 tab）
+- 12 节精选课变成"推荐学习路径"标记
+
+---
+
 ## v0.1.6 - chat-first UI + 原子笔记 + 上传资料拆课 + 学习偏好
 
 日期：2026-05-13

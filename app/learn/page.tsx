@@ -78,6 +78,43 @@ async function loadSourceInfo(
     };
   }
 
+  if (source === "paper" && id) {
+    // v0.1.6.1: 论文导读 —— 用 curated paper 合成 lesson
+    const { getPaperById, CATEGORY_LABELS } = await import("@/lib/papers/papers");
+    const paper = getPaperById(id);
+    if (!paper) return null;
+    const syntheticLesson = {
+      id: `paper-${paper.id}`,
+      courseId: "papers",
+      title: paper.title,
+      category: "paper" as const,
+      targetLevelMin: paper.difficulty === "intro" ? 2 : paper.difficulty === "intermediate" ? 4 : 6,
+      targetLevelMax: paper.difficulty === "intro" ? 5 : paper.difficulty === "intermediate" ? 7 : 9,
+      defaultMentor: paper.recommendedMentor,
+      summary: paper.keyContribution,
+      keyConcepts: [
+        "这篇论文解决了什么具体问题",
+        "核心方法 / 关键创新",
+        "为什么这件事重要（对行业 / 对 AIPM）",
+        "我们能拿来用在什么场景",
+      ],
+      socraticQuestions: [
+        `「${paper.title}」—— 看到题目你会预期它在解决什么问题?`,
+        `${paper.keyContribution} —— 这句话里哪个词你最不确定它具体指什么?`,
+        `如果你做 AI 产品,这篇论文对你最有用的一点是什么?`,
+      ],
+      outputTask: `用一句话写下:「${paper.title}」对你的 AI 产品工作最有启发的一点`,
+      extensionRoadmap: [],
+      tutorialContent: `# ${paper.title}\n\n**作者**: ${paper.authors} · **${paper.year}** · ${paper.org}\n**类别**: ${CATEGORY_LABELS[paper.category]}\n\n## 一句话核心贡献\n\n${paper.keyContribution}\n\n## 摘要\n\n${paper.abstractZh}\n\n## 为什么 AIPM 该读\n\n${paper.whyAipm}\n\n---\n\n**原文链接**: ${paper.arxivUrl || paper.paperUrl}`,
+    };
+    return {
+      lesson: syntheticLesson,
+      sourceLabel: "论文导读",
+      backHref: `/papers/${encodeURIComponent(paper.id)}`,
+      backLabel: "← 论文详情",
+    };
+  }
+
   const resolvedId = lessonParam || recommendFirstLesson(testResult.aiLevel.level, testResult.recommendedPath);
   const lesson = getLessonById(resolvedId);
   if (!lesson) return null;
