@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { fetchSelectedHotItems } from "@/lib/hot/client";
+import { LearningCenterShell } from "@/components/learning-center-shell";
 
 // 服务端组件：在服务器上抓 AI HOT 数据，自带 5 分钟缓存
 export const revalidate = 300;
@@ -8,13 +9,7 @@ export default async function HotPage() {
   const { items, source, error } = await fetchSelectedHotItems(20);
 
   return (
-    <main className="container-narrow py-8">
-      <header className="mb-8">
-        <Link href="/profile" className="text-sm text-ink-mute hover:text-ink-soft">
-          ← 学习中心
-        </Link>
-      </header>
-
+    <LearningCenterShell current="hot">
       <section className="space-y-6">
         <div className="space-y-2">
           <p className="text-sm tracking-wide text-ink-mute">AI 热点学习舱</p>
@@ -68,7 +63,7 @@ export default async function HotPage() {
           数据来自 AI HOT 精选。热点摘要仅用于学习辅助，重要信息以原文为准。
         </p>
       </section>
-    </main>
+    </LearningCenterShell>
   );
 }
 

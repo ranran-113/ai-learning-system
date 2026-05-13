@@ -86,8 +86,8 @@ export default function OnboardingPage() {
     const duration = startAt ? Math.floor((Date.now() - startAt) / 1000) : 0;
     const result = generateTestResult(answers, duration);
     lsSet(LS_KEYS.TEST_RESULT, result);
-    // 跳到结果页
-    setTimeout(() => router.push("/profile"), 400);
+    // 跳到结果揭晓页（v0.1.5: 测试 → result 庆祝 → 直达课）
+    setTimeout(() => router.push("/onboarding/result"), 400);
   };
 
   // ============= 渲染 =============

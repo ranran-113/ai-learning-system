@@ -11,6 +11,7 @@ import {
 import { MENTOR_NAMES } from "@/types/mentor";
 import { getLessonById } from "@/lib/courses/built-in-courses";
 import type { LearningSession, OutputRecord } from "@/lib/langgraph/state";
+import { LearningCenterShell } from "@/components/learning-center-shell";
 
 type Tab = "sessions" | "outputs";
 
@@ -32,13 +33,7 @@ export default function RecordsPage() {
   const totalOutputs = outputs.length;
 
   return (
-    <main className="container-narrow py-8">
-      <header className="mb-8">
-        <Link href="/profile" className="text-sm text-ink-mute hover:text-ink-soft">
-          ← 学习中心
-        </Link>
-      </header>
-
+    <LearningCenterShell current="records">
       <section className="space-y-6">
         <div className="space-y-2">
           <p className="text-sm tracking-wide text-ink-mute">学习记录</p>
@@ -71,7 +66,7 @@ export default function RecordsPage() {
           <OutputsList outputs={outputs} />
         )}
       </section>
-    </main>
+    </LearningCenterShell>
   );
 }
 

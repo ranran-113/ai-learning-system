@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { LEVEL_NAMES, LEVEL_NEXT_CAPABILITY, type TestResult } from "@/types/profile";
 import { lsGet, LS_KEYS, cn } from "@/lib/utils";
+import { LearningCenterShell } from "@/components/learning-center-shell";
 
 // 等级简介
 const LEVEL_DESCRIPTIONS: Record<number, string> = {
@@ -29,18 +30,7 @@ export default function LevelsPage() {
   }, []);
 
   return (
-    <main className="container-narrow py-10">
-      <header className="mb-10 flex items-center justify-between">
-        <Link href="/" className="text-sm text-ink-mute hover:text-ink-soft">
-          ← 回首页
-        </Link>
-        {userLevel !== null && (
-          <Link href="/profile" className="text-sm text-ink-mute hover:text-ink-soft">
-            我的成长档案 →
-          </Link>
-        )}
-      </header>
-
+    <LearningCenterShell current="levels">
       <section className="mb-10 space-y-3">
         <p className="text-sm tracking-wide text-ink-mute">AI 能力进阶地图</p>
         <h1 className="text-3xl font-medium leading-snug sm:text-4xl">
@@ -117,6 +107,6 @@ export default function LevelsPage() {
           </Link>
         </div>
       )}
-    </main>
+    </LearningCenterShell>
   );
 }

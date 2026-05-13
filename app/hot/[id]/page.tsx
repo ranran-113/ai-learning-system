@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { fetchHotItemById } from "@/lib/hot/client";
+import { LearningCenterShell } from "@/components/learning-center-shell";
 
 export const revalidate = 300;
 
@@ -14,16 +15,12 @@ export default async function HotDetailPage({ params }: { params: Promise<{ id: 
   }
 
   return (
-    <main className="container-narrow py-8">
-      <header className="mb-8 flex items-center justify-between">
+    <LearningCenterShell current="hot">
+      <div className="mb-4">
         <Link href="/hot" className="text-sm text-ink-mute hover:text-ink-soft">
           ← 热点列表
         </Link>
-        <Link href="/profile" className="text-sm text-ink-mute hover:text-ink-soft">
-          学习中心
-        </Link>
-      </header>
-
+      </div>
       <article className="space-y-6">
         <div className="space-y-3">
           <div className="flex flex-wrap items-center gap-2">
@@ -77,7 +74,7 @@ export default async function HotDetailPage({ params }: { params: Promise<{ id: 
           </div>
         )}
       </article>
-    </main>
+    </LearningCenterShell>
   );
 }
 

@@ -9,6 +9,7 @@ import {
   ADLER_SYSTEM_PROMPT,
   ADLER_EVIDENCE_CONFLICT_OPENING,
   MENTOR_REPLY_LIMITS,
+  MENTOR_OPENING_LIMITS,
 } from "@/lib/prompts/mentor-personas";
 import type { LLMMessage } from "@/lib/llm/client";
 
@@ -105,20 +106,25 @@ export type ValidationResult = {
   hardLimit: number;
 };
 
-export function validateMentorReply(mentor: MentorKey, content: string): ValidationResult {
-  const limits = MENTOR_REPLY_LIMITS[mentor];
+// 注：第一轮（含 5E 锚定段）用 MENTOR_OPENING_LIMITS,后续用 MENTOR_REPLY_LIMITS
+export function validateMentorReply(
+  mentor: MentorKey,
+  content: string,
+  isFirstTurn: boolean = false
+): ValidationResult {
+  const limits = isFirstTurn ? MENTOR_OPENING_LIMITS[mentor] : MENTOR_REPLY_LIMITS[mentor];
   const len = content.length;
 
   // 字数硬上限
   if (len > limits.hard) {
     return {
       valid: false,
-      reason: `回复 ${len} 字超过硬上限 ${limits.hard} 字`,
+      reason: `回复 ${len} 字超过${isFirstTurn ? "开场" : "硬"}上限 ${limits.hard} 字`,
       hardLimit: limits.hard,
     };
   }
 
-  // 卡帕西必须提问（除了第一轮可能例外,通常都该有问号）
+  // 卡帕西必须提问
   if (mentor === "karpathy" && !content.includes("？") && !content.includes("?")) {
     return {
       valid: false,
@@ -168,22 +174,33 @@ export function checkReplyLength(mentor: MentorKey, reply: string): {
   };
 }
 
+// 5E 教学法的开场：锚定段 (Engage) + 第一个苏格拉底问题 (Explore 入口)
 export function buildOpeningMessage(
   mentor: MentorKey,
   ctx: LearningContext
 ): string {
+  // 特殊场景：evidenceConflict 首次会话由阿德勒接,跳过锚定
   if (ctx.isFirstTurnOfSession && ctx.testResult.aiLevel.evidenceConflict && mentor === "adler") {
     return ADLER_EVIDENCE_CONFLICT_OPENING;
   }
 
   const lesson = ctx.currentLesson;
   const firstQ = lesson.socraticQuestions[0];
+  // 取课程摘要作为锚定主体（已经写得很简洁）
+  const anchor = lesson.summary;
+  // 等级跨段提示
+  const levelHint = `（Lv.${lesson.targetLevelMin}-${lesson.targetLevelMax} 跨度,你现在 Lv.${ctx.testResult.aiLevel.level}）`;
 
   if (mentor === "adler") {
-    return `开始之前——你今天状态怎么样？\n\n如果还行，我们一起看一个问题：${firstQ}`;
+    // 阿德勒不走纯 5E,先接情绪
+    return `开始之前——你今天状态怎么样？\n\n如果还行,我们一起看：${anchor}\n\n先问你一个：${firstQ}`;
   }
+
   if (mentor === "qian") {
-    return `这一节我们要弄清楚的：${lesson.title}。\n\n先问你一个：${firstQ}`;
+    // 钱学森：锚定 = 这一节在系统里的位置 + 目标
+    return `这一节要弄清楚的：${anchor}\n\n它在你成长地图上的位置：${levelHint}\n\n先确认下：${firstQ}`;
   }
-  return firstQ;
+
+  // 卡帕西：锚定 = 今天要拆穿的具体疑惑 + 它为什么重要
+  return `今天我们要拆穿的：${anchor}\n\n${levelHint}\n\n先问你一个具体的：${firstQ}`;
 }

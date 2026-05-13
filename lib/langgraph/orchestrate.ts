@@ -55,8 +55,11 @@ export async function* runChatTurn(
     return;
   }
 
-  // 第二遍：校验
-  const validation = validateMentorReply(decision.mentor, collected);
+  // 第二遍：校验（注意:本会话第一次 LLM 回复时用更宽松的开场字数限制）
+  // 这里 isFirstTurnOfSession 来自 ctx,表示这次 chat call 是不是会话的第一次 LLM 调用
+  // ctx.messages 此时还没包含本轮用户消息,所以 length == 1 (只有开场 mentor 消息) 时,这是 LLM 第一次说话
+  const isFirstLLMTurn = ctx.messages.length <= 1;
+  const validation = validateMentorReply(decision.mentor, collected, isFirstLLMTurn);
   if (!validation.valid) {
     yield { type: "rethink", reason: validation.reason || "回复不符合规则" };
 

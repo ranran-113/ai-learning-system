@@ -7,6 +7,7 @@ import { BUILT_IN_LESSONS } from "@/lib/courses/built-in-courses";
 import { MENTOR_NAMES } from "@/types/mentor";
 import type { TestResult } from "@/types/profile";
 import type { BuiltInLesson, LessonCategory } from "@/types/lesson";
+import { LearningCenterShell } from "@/components/learning-center-shell";
 
 const CATEGORY_LABELS: Record<LessonCategory, string> = {
   aipm: "AIPM 主线",
@@ -50,13 +51,7 @@ export default function CoursesPage() {
   }, [filter]);
 
   return (
-    <main className="container-narrow py-8">
-      <header className="mb-8 flex items-center justify-between">
-        <Link href="/profile" className="text-sm text-ink-mute hover:text-ink-soft">
-          ← 学习中心
-        </Link>
-      </header>
-
+    <LearningCenterShell current="courses">
       <section className="space-y-6">
         <div className="space-y-2">
           <p className="text-sm tracking-wide text-ink-mute">课程中心</p>
@@ -123,7 +118,7 @@ export default function CoursesPage() {
           </div>
         )}
       </section>
-    </main>
+    </LearningCenterShell>
   );
 }
 

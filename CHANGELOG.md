@@ -345,7 +345,53 @@ v主版本.次版本.修订版本
 
 ---
 
-## v0.1.5 - 待开发
+## v0.1.5 - 5E 教学法 + 左右布局 dashboard + 会话累积起点
+
+日期：2026-05-13
+
+### 已完成 —— 教学方法升级（5E + 锚定开场）
+
+- ✅ 卡帕西 / 钱学森 system prompt 重写：明确分 5 阶段（Engage 锚定 → Explore 苏格拉底 → Explain 祛魅时刻 → Elaborate → Evaluate）
+- ✅ 第一轮开场带**概念锚定段**（120-200 字）告诉用户今天要弄清楚什么 + 第一个问题，避免新手"被冷启动"
+- ✅ **祛魅时刻指令**：用户卡 2 轮以上 / 来回兜圈子时，mentor 主动"讲穿":"所谓 X 其实就是 Y"，≤ 60-80 字立即接下一个问题
+- ✅ 字数限制分层：首轮（含锚定）120-240 字软上限，后续回归 80/150/100 字
+- ✅ `validateMentorReply(mentor, content, isFirstTurn)` 按首轮 / 后续用不同 limit
+- ✅ MENTORS.md §1.1 新增 5E 教学法说明
+
+### 已完成 —— UI 重构（学习中心左右布局）
+
+- ✅ 新增 `/onboarding/result` 测试结果**庆祝页**：测试完成 → 揭示等级 / 进度条 / 节奏 / 推荐课 → 大按钮「开始你的第一节」直达 /learn
+- ✅ /onboarding 跳转改为 /onboarding/result（不直接进 /profile）
+- ✅ `components/learning-center-shell.tsx` 学习中心 Shell：
+  - 桌面：左侧 240px sidebar 导航（学习中心 / 课程中心 / AI 热点 / 上传资料 / 学习记录 / 能力地图 / 设置）+ 右侧 main
+  - 移动：顶栏 + drawer 菜单
+  - 内置用户邮箱显示 + 登录 / 退出
+- ✅ /profile 重构为**纯 dashboard**（不再扛"结果展示"角色，结果展示在 /onboarding/result）：欢迎 + 继续学习卡 + 等级紧凑展示 + 节奏 + 三导师比例
+- ✅ /courses / /records / /hot / /hot/[id] / /materials / /levels 全部包进 Shell，导航一致
+- ✅ 新增 `/settings` 页：账号 / 数据同步 / 重新测试 / 清空本地缓存（危险操作）
+
+### 已完成 —— 沉浸式学习（去时间限制 + 会话累积起点）
+
+- ✅ PRD.md / LESSONS.md 移除"15-25 分钟"硬约束，改为"建议 15-25 分钟，但深入想透不限时长"
+- ✅ /learn header 加**深度感指示器**（⚪⚪⚫⚫⚫ 基于用户发言轮数），替代时间感
+- ✅ /learn header 把「结束本节」改为「暂停本节」，更柔和
+- ✅ `resumeArchivedSession()`：进入同一节课时自动恢复最近一次归档会话（v0.1.5 会话累积模型起点）
+- ✅ HARNESS.md §4.1 文档化 "v0.2 完整版会话累积模型" 待办（mentor 跨会话续学 + 掌握度评估）
+
+### 用户需要做的
+
+1. **推送代码**：`cd /Users/maiyatang2017/学习系统 && git push`
+2. **不需要额外动作**：Supabase schema 不变，Vercel 环境变量不变。本轮纯 UI + 教学逻辑升级，DB / API 无破坏性变更。
+
+### 下一步（v0.1.6）
+
+- 真实使用反馈 → harness #2 Few-shot 示例
+- 视用户感受决定 /materials 上传资料拆课优先级
+- v0.2 启动时:完整版「会话累积模型」 + 「掌握度评估」
+
+---
+
+## v0.1.5 - 待开发（已被本版本替代）
 
 计划内容：
 

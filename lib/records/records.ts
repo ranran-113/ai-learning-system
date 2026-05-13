@@ -43,6 +43,26 @@ export function getAllArchivedSessions(): LearningSession[] {
   return lsGet<LearningSession[]>(SESSION_LS_KEYS.LEARNING_SESSIONS) || [];
 }
 
+// 拿到某节课的所有历史会话（用于累积深度感）
+export function getArchivedSessionsForLesson(lessonId: string): LearningSession[] {
+  return getAllArchivedSessions().filter((s) => s.lessonId === lessonId);
+}
+
+// 把归档会话恢复为当前会话(用于"继续学习同一节")
+// 注意:把它从归档中移除,避免一节课在两边都出现
+export function resumeArchivedSession(sessionId: string): LearningSession | null {
+  const archived = getAllArchivedSessions();
+  const target = archived.find((s) => s.id === sessionId);
+  if (!target) return null;
+  // 从归档中移除
+  const remaining = archived.filter((s) => s.id !== sessionId);
+  lsSet(SESSION_LS_KEYS.LEARNING_SESSIONS, remaining);
+  // 移除 ended_at,变回进行中
+  const resumed: LearningSession = { ...target, endedAt: undefined };
+  setCurrentSession(resumed);
+  return resumed;
+}
+
 // ============= 输出沉淀（跨会话） =============
 export function getOutputHistory(): OutputRecord[] {
   return lsGet<OutputRecord[]>(SESSION_LS_KEYS.OUTPUT_HISTORY) || [];

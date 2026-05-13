@@ -15,6 +15,8 @@ import {
   getOutputHistory,
   appendOutput,
   endCurrentSession,
+  getArchivedSessionsForLesson,
+  resumeArchivedSession,
 } from "@/lib/records/records";
 import type { ChatMessage, LearningContext } from "@/lib/langgraph/state";
 import { buildOpeningMessage } from "@/lib/agents/builders";
@@ -149,6 +151,19 @@ function LearnPageInner() {
         setActiveMentor(existing.activeMentor);
         setMentorTurnCount(existing.mentorTurnCount);
         return;
+      }
+
+      // 看是否有归档的同一节课会话 —— 自动恢复最近一次（v0.1.5: 允许跨会话续学）
+      const archivedSame = getArchivedSessionsForLesson(info.lesson.id);
+      if (archivedSame.length > 0) {
+        const latest = archivedSame[archivedSame.length - 1];
+        const resumed = resumeArchivedSession(latest.id);
+        if (resumed) {
+          setMessages(resumed.messages);
+          setActiveMentor(resumed.activeMentor);
+          setMentorTurnCount(resumed.mentorTurnCount);
+          return;
+        }
       }
 
       // 新开一节
@@ -354,6 +369,10 @@ function LearnPageInner() {
 
   const lesson = sourceInfo.lesson;
 
+  // 深度感（替代时间限制）：基于用户发言轮数 + 是否已沉淀
+  const userTurns = messages.filter((m) => m.role === "user").length;
+  const depthLevel = Math.min(5, Math.floor(userTurns / 2));  // 每 2 轮 +1 深度
+
   return (
     <main className="container-narrow flex min-h-screen flex-col py-6">
       <header className="mb-4 flex flex-col gap-2 border-b border-bg-warm/60 pb-4">
@@ -362,7 +381,7 @@ function LearnPageInner() {
             {sourceInfo.backLabel}
           </Link>
           <button onClick={handleEndSession} className="text-ink-mute hover:text-ink-soft">
-            结束本节
+            暂停本节
           </button>
         </div>
         <div className="flex items-center gap-2">
@@ -370,6 +389,25 @@ function LearnPageInner() {
           <h1 className="text-lg font-medium leading-snug sm:text-xl">{lesson.title}</h1>
         </div>
         <p className="line-clamp-2 text-xs leading-relaxed text-ink-soft">{lesson.summary}</p>
+        {/* 深度感:基于用户发言轮数 + 沉淀数量 */}
+        {userTurns > 0 && (
+          <div className="flex items-center gap-2 text-xs text-ink-mute">
+            <span>本节深度</span>
+            <span className="flex gap-0.5">
+              {[0, 1, 2, 3, 4].map((i) => (
+                <span
+                  key={i}
+                  className={cn(
+                    "h-1.5 w-3 rounded-full",
+                    i < depthLevel ? "bg-moss" : "bg-bg-warm"
+                  )}
+                />
+              ))}
+            </span>
+            <span>· 你已发言 {userTurns} 次</span>
+            <span className="text-ink-soft/60">· 想透不限时长</span>
+          </div>
+        )}
       </header>
 
       <div className="flex-1 space-y-4 overflow-y-auto pb-4">
