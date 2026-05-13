@@ -7,6 +7,12 @@ import { LearningCenterShell } from "@/components/learning-center-shell";
 import { lsRemove, LS_KEYS } from "@/lib/utils";
 import { getCurrentUser, signOut, syncLocalToSupabase, syncSupabaseToLocal } from "@/lib/sync/sync";
 import { SESSION_LS_KEYS } from "@/lib/langgraph/state";
+import {
+  getLearningPreferences,
+  saveLearningPreferences,
+  DEFAULT_PREFERENCES,
+  type LearningPreferences,
+} from "@/lib/preferences/preferences";
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -14,18 +20,28 @@ export default function SettingsPage() {
   const [syncBusy, setSyncBusy] = useState(false);
   const [syncMsg, setSyncMsg] = useState("");
   const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
+  const [prefs, setPrefs] = useState<LearningPreferences>(DEFAULT_PREFERENCES);
+  const [prefsSaved, setPrefsSaved] = useState(false);
 
   useEffect(() => {
     (async () => {
       const u = await getCurrentUser();
       setUserEmail(u?.email || null);
-      // 读最后同步时间
       try {
         const ts = localStorage.getItem("als:last-synced-at");
         if (ts) setLastSyncedAt(ts);
       } catch {}
     })();
+    setPrefs(getLearningPreferences());
   }, []);
+
+  const updatePref = <K extends keyof LearningPreferences>(key: K, value: LearningPreferences[K]) => {
+    const next = { ...prefs, [key]: value };
+    setPrefs(next);
+    saveLearningPreferences(next);
+    setPrefsSaved(true);
+    setTimeout(() => setPrefsSaved(false), 1500);
+  };
 
   const handleSignOut = async () => {
     if (!confirm("退出登录吗？")) return;
@@ -103,6 +119,65 @@ export default function SettingsPage() {
           )}
         </div>
 
+        {/* 学习偏好 */}
+        <div className="card space-y-4">
+          <div className="flex items-center justify-between">
+            <p className="text-xs uppercase tracking-wider text-ink-mute">学习偏好</p>
+            {prefsSaved && <span className="text-xs text-moss">✓ 已保存</span>}
+          </div>
+          <p className="text-sm leading-relaxed text-ink-soft">
+            这些偏好会传给三位导师，影响他们怎么跟你说话。改完即时生效，不用点保存。
+          </p>
+
+          <PreferenceRadio
+            label="学新概念时,你更喜欢"
+            value={prefs.learningStyle}
+            onChange={(v) => updatePref("learningStyle", v)}
+            options={[
+              { value: "example_first", label: "先看具体例子 / 类比" },
+              { value: "abstract_first", label: "先听抽象框架 / 定义" },
+              { value: "balanced", label: "平衡（默认）" },
+            ]}
+          />
+
+          <PreferenceRadio
+            label="讲解深度"
+            value={prefs.explanationDepth}
+            onChange={(v) => updatePref("explanationDepth", v)}
+            options={[
+              { value: "minimal", label: "精简到位,不淹没我" },
+              { value: "balanced", label: "平衡（默认）" },
+              { value: "deep", label: "深挖细节,我想弄透" },
+            ]}
+          />
+
+          <PreferenceRadio
+            label="温度 / 鼓励"
+            value={prefs.encouragementLevel}
+            onChange={(v) => updatePref("encouragementLevel", v)}
+            options={[
+              { value: "minimal", label: "克制专业,别给我加油" },
+              { value: "balanced", label: "平衡（默认）" },
+              { value: "warm", label: "温暖陪伴感,偶尔认可一下" },
+            ]}
+          />
+
+          <div className="space-y-1.5">
+            <label className="text-xs text-ink-mute">额外指令（任何你想让导师注意的事）</label>
+            <textarea
+              value={prefs.customInstructions}
+              onChange={(e) => updatePref("customInstructions", e.target.value)}
+              rows={3}
+              placeholder={'例如:我是医疗背景,讨论时可以多举医疗案例 / 我做工业 PM,关注 to B 角度 / 不要用「赋能」这种词'}
+              className="w-full resize-y rounded-lg border border-bg-warm/70 bg-white/60 p-3 text-sm focus:border-accent/40 focus:outline-none"
+            />
+          </div>
+
+          {prefs.updatedAt && (
+            <p className="text-xs text-ink-mute">上次更新：{new Date(prefs.updatedAt).toLocaleString("zh-CN")}</p>
+          )}
+        </div>
+
         {/* 数据同步 */}
         <div className="card space-y-3">
           <p className="text-xs uppercase tracking-wider text-ink-mute">数据同步</p>
@@ -170,5 +245,38 @@ export default function SettingsPage() {
         </p>
       </section>
     </LearningCenterShell>
+  );
+}
+
+function PreferenceRadio<T extends string>({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label: string;
+  value: T;
+  onChange: (v: T) => void;
+  options: Array<{ value: T; label: string }>;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <p className="text-xs text-ink-mute">{label}</p>
+      <div className="flex flex-wrap gap-2">
+        {options.map((opt) => (
+          <button
+            key={opt.value}
+            onClick={() => onChange(opt.value)}
+            className={`rounded-full border px-3 py-1 text-xs transition ${
+              value === opt.value
+                ? "border-accent bg-accent text-white"
+                : "border-bg-warm/70 text-ink-soft hover:bg-bg-subtle"
+            }`}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }

@@ -16,14 +16,29 @@ export type ChatMessage = {
   createdAt: string;
 };
 
-// 用户的输出沉淀
+// 用户的输出沉淀 —— v0.1.6 起升级为"原子笔记"形态
+// 旧字段保持兼容（type / content / createdAt 必填）,新字段可选用于知识库视图
 export type OutputRecord = {
   id: string;
   lessonId: string;
   type: "one_sentence" | "note" | "prompt" | "social_post" | "speech_summary";
-  content: string;
+  content: string;          // 兼容旧版:仍是正文。新版正文也写这里
   createdAt: string;
+
+  // v0.1.6 新增:原子笔记字段
+  title?: string;           // 一句话点明本笔记解决什么问题
+  tags?: string[];          // 用户自定义 + AI 起草
+  source?: {
+    lessonTitle?: string;
+    mentor?: MentorKey;
+    sessionId?: string;
+    relevantMessageIds?: string[];   // 引用对话中哪几条消息
+  };
+  linkedNoteIds?: string[];  // 双向链接到其他笔记（v0.1.7 启用）
 };
+
+// 别名,方便代码里用更准确的名字
+export type AtomicNote = OutputRecord;
 
 // 一次学习会话
 export type LearningSession = {
@@ -46,6 +61,7 @@ export type LearningContext = {
   activeMentor: MentorKey;            // 上一轮的导师
   mentorTurnCount: number;            // 当前导师已连续发言轮数
   isFirstTurnOfSession: boolean;      // 是否本会话第一轮
+  userPreferences?: string;           // v0.1.6: 学习偏好（已渲染为 prompt 段）
 };
 
 // localStorage key 命名

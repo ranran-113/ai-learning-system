@@ -401,13 +401,83 @@ v主版本.次版本.修订版本
 
 ---
 
-## v0.1.6 - 待开发
+## v0.1.6 - chat-first UI + 原子笔记 + 上传资料拆课 + 学习偏好
+
+日期：2026-05-13
+
+### 已完成 —— UI 重构
+
+- ✅ 抽取 `components/learning-chat.tsx`:学习对话主体组件,/profile 和 /learn 共用
+- ✅ `/profile` 改为 **chat-first**:右侧主区直接显示当前学习的对话,无在学时显示状态卡 + 入口
+- ✅ `/learn` 重构为薄壳:用 LearningChat 全屏模式,支持 lesson / hot_item / material 三种 source
+- ✅ 输入栏增强:
+  - 左 **`+` 按钮**:上传 .txt / .md 作为本轮上下文（不污染整节课）
+  - 右 **🎙 听写**:Web Speech API 中文语音转文字（按下听,再按停）
+  - 每条 mentor 消息可点 **🔊 播放**（SpeechSynthesis,再点暂停）
+
+### 已完成 —— 原子笔记 + 个人知识库
+
+- ✅ `OutputRecord` 升级为 `AtomicNote`:加 title / tags / source / linkedNoteIds 字段（兼容旧版）
+- ✅ 沉淀混合模式（方案 C）:点「完成沉淀」→ `/api/sediment/draft` 让 LLM 起草 → 用户编辑标题/正文/标签 → 保存
+- ✅ `/records` 改造为 **个人知识库视图**：
+  - 三 tab:原子笔记 / 学习会话 / 概览
+  - 笔记 tab:搜索 + 标签筛选 + 卡片网格,每张卡可单独导出
+  - 概览 tab:统计 + 学习领域分布 + 标签云
+- ✅ Markdown 导出 `lib/records/export.ts`:
+  - 每条笔记一个 .md 文件,含 frontmatter（title/tags/source/suggested-wiki-path）
+  - JSZip 打包成 zip 下载
+  - frontmatter 的 `suggested-wiki-path` 提示导入用户 wiki 哪个目录（与个人 wiki 互通,不强写）
+
+### 已完成 —— 导师 prompt 升级
+
+- ✅ SHARED_CONTEXT_PREAMBLE 加两条:
+  - **主动引用旧笔记**:用户问的话题在历史输出沉淀里有关联时主动引用
+  - **主动促沉淀**:检测 insight signal（”所以我觉得 X”等）时建议存知识库
+
+### 已完成 —— 上传资料自动拆课
+
+- ✅ `/materials` 真正实现:粘贴文本或 .txt/.md 文件 → 调 `/api/materials/split` → LLM 拆成合成微课
+- ✅ 拆课产出:摘要 + 合成 lesson（标题/核心概念/3 个紧扣资料的苏格拉底问题/输出任务）
+- ✅ 资料存 localStorage,通过 `/learn?source=material&id=xxx` 学习
+- ✅ 兼容内置课 + 热点 + 资料三种 source 统一在 LearningChat
+
+### 已完成 —— 学习偏好（轻量用户 Skills）
+
+- ✅ `/settings` 新增「学习偏好」section:
+  - 学习风格（先具体例子 / 先抽象框架 / 平衡）
+  - 讲解深度（精简 / 平衡 / 深挖）
+  - 温度（克制 / 平衡 / 温暖）
+  - 自由文本「额外指令」
+- ✅ `lib/preferences/preferences.ts` localStorage 存储 + `preferencesToPromptSegment` 渲染
+- ✅ LearningContext 加 `userPreferences` 字段,自动注入 mentor system prompt（在 caching 友好的位置）
+
+### 架构决策
+
+- **个人知识库的”sweet spot”**：不重复用户外部 wiki,**做学习过程的副产品**。导出 markdown 含 `suggested-wiki-path` 让用户决定要不要进自己的 wiki。系统永远不强写入用户外部 wiki（边界）。
+- **学习偏好作为轻量 Skills**:不是用户自创复杂 Skill,而是几个开关 + 自由文本,门槛低,效果立竿见影。
+- **上传资料 v0.1.6 用 localStorage**:跨设备同步留给 v0.1.7（Supabase 完全迁移时一起）。
+
+### 用户需要做的
+
+1. **推送代码**：`cd /Users/maiyatang2017/学习系统 && git push`
+2. **不需要新环境变量**:本轮纯前端 + LLM 调用增强,后端不变。
+
+### v0.1.7（下一轮）路线
+
+- 双向链接 `[[note title]]` + 图谱视图
+- 全文检索（FTS5 风格,前端 fuse.js 或 Supabase pg_trgm）
+- localStorage → Supabase 完全迁移（含 materials + preferences）
+- PDF 解析（上传资料支持 PDF / Word 等）
+
+---
+
+## v0.1.6 - 待开发（已被本版本替代）
 
 计划内容：
 
 - 接入 AI HOT 精选热点。
 - 实现 AI 热点学习舱。
-- 实现热点“帮我讲解”。
+- 实现热点”帮我讲解”。
 
 ---
 

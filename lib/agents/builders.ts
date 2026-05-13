@@ -72,14 +72,14 @@ export function buildLLMMessages(
   ctx: LearningContext
 ): LLMMessage[] {
   // === Prompt caching 友好的结构 ===
-  // 顺序：[最静态] persona → [次静态] lesson → [次静态] profile → [动态] outputs + turn
-  // DeepSeek 自动缓存最长公共前缀。同一会话内,persona + lesson 不变,会被命中。
+  // 顺序：[最静态] persona → [次静态] lesson → [次静态] profile + preferences → [动态] outputs + turn
   const systemContent = [
     MENTOR_PROMPTS[mentor],
     buildLessonSegment(ctx),
     buildUserProfileSegment(ctx),
+    ctx.userPreferences || "",  // 学习偏好（v0.1.6 加入,可选）
     buildDynamicSegment(ctx),
-  ].join("\n\n");
+  ].filter(Boolean).join("\n\n");
 
   const messages: LLMMessage[] = [
     { role: "system", content: systemContent },
