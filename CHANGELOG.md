@@ -401,6 +401,39 @@ v主版本.次版本.修订版本
 
 ---
 
+## v0.3.1 - /profile 加「今日主路径」轻量卡
+
+日期：2026-05-14
+
+### 新增
+
+- ✅ `components/today-path-card.tsx`:**「今日主路径」轻量卡**(chat 之上、状态栏之下)
+  - 一行高度,3 秒能扫完,不打断 chat-first
+  - 优先级:**未完成会话 > 今日推荐课**
+    - 有未完成会话:「**接着上次:卡帕西 · L8 学会提问 · 第 6 轮 [继续 →]**」
+    - 无会话只有推荐:「**今天开始一节:推荐 L9 控制 AI 输出 [开始]**」
+  - 右上角 ✕ 折叠:存 `als:today-path-dismissed:YYYY-M-D` localStorage,**当天不再弹**(跨天自动重置)
+  - 导师名称取自会话里最后一条 mentor 消息的 mentor 字段(更准)
+  - 轮数 = `messages.length / 2` 向上取整
+- ✅ `components/learning-chat.tsx`:监听 `als:focus-chat` 事件
+  - 点「继续/开始」按钮触发 chat 输入框 focus + 自动滚到底
+  - 用 window CustomEvent 解耦(不需要 forwardRef)
+
+### 修改
+
+- ✅ `app/profile/page.tsx`:
+  - 在 LearningChat 之上加 TodayPathCard
+  - 新增 `currentSession` 状态(用于喂给 TodayPathCard 判断分支)
+  - `onSessionEnd` 触发时清空 `currentSession`,卡片切换到推荐模式
+
+### 设计取舍
+
+- **不放业务功能在卡上**:卡只负责「**你现在在哪、下一步**」,不放沉淀 / 测试 / 等级跳转,保持 3 秒可扫
+- **当天折叠不跨天**:用 YYYY-M-D 做 key,跨天自动重新出现,避免「**关一次永远看不到**」
+- **导师名优先看最后一条消息**:`activeMentor` 字段可能过时,最后一条消息的 mentor 更准
+
+---
+
 ## v0.3.0 - 两本教材全本完成（32 章约 16 万字）
 
 日期：2026-05-14

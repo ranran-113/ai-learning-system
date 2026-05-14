@@ -15,6 +15,8 @@ import { getCurrentUser, syncLocalToSupabase, syncSupabaseToLocal } from "@/lib/
 import { LearningCenterShell } from "@/components/learning-center-shell";
 import { LearningChat, type SourceInfo } from "@/components/learning-chat";
 import { getCurrentSession } from "@/lib/records/records";
+import { TodayPathCard } from "@/components/today-path-card";
+import type { LearningSession } from "@/lib/langgraph/state";
 
 function ProfilePageInner() {
   const router = useRouter();
@@ -24,6 +26,7 @@ function ProfilePageInner() {
   const [syncStatus, setSyncStatus] = useState<"idle" | "syncing" | "done" | "error">("idle");
   const [syncMsg, setSyncMsg] = useState("");
   const [sourceInfo, setSourceInfo] = useState<SourceInfo | null>(null);
+  const [currentSession, setCurrentSession] = useState<LearningSession | null>(null);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
@@ -59,6 +62,7 @@ function ProfilePageInner() {
 
       // 决定 chat 加载哪节课:优先看当前进行中的会话,再看推荐
       const current = getCurrentSession();
+      setCurrentSession(current);
       let lessonId: string | null = null;
       if (current && !current.endedAt) {
         lessonId = current.lessonId;
@@ -109,13 +113,19 @@ function ProfilePageInner() {
         </div>
       )}
 
+      {/* "今日主路径"轻量卡 —— chat 之上、状态栏之下 */}
+      {sourceInfo && (
+        <TodayPathCard currentSession={currentSession} lesson={sourceInfo.lesson} />
+      )}
+
       {/* chat-first 主体 */}
       {sourceInfo ? (
         <LearningChat
           testResult={result}
           sourceInfo={sourceInfo}
           onSessionEnd={() => {
-            // 暂停后刷新 sourceInfo
+            // 暂停后:会话已归档,刷新 sourceInfo 为推荐课,清空 currentSession
+            setCurrentSession(null);
             const stored = lsGet<TestResult>(LS_KEYS.TEST_RESULT);
             if (stored) {
               const lessonId = recommendFirstLesson(stored.aiLevel.level, stored.recommendedPath);

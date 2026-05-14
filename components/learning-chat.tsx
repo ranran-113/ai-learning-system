@@ -143,6 +143,17 @@ export function LearningChat({
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, streamingText]);
 
+  // 外部触发 focus(TodayPathCard 的"继续/开始"按钮会派发这个事件)
+  useEffect(() => {
+    function onFocusChat() {
+      textareaRef.current?.focus();
+      // 同时滚动到底部,让用户看到最新对话
+      chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+    window.addEventListener("als:focus-chat", onFocusChat);
+    return () => window.removeEventListener("als:focus-chat", onFocusChat);
+  }, []);
+
   // 处理外部传入的附件
   useEffect(() => {
     if (attachedContext) {
