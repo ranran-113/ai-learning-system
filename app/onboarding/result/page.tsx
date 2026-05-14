@@ -109,14 +109,17 @@ export default function OnboardingResultPage() {
           </p>
         </div>
 
-        {/* 大按钮 CTA */}
+        {/* 大按钮 CTA —— v0.4 改:不直接进 chat,而是进首页看 4 条学习线 */}
         <div className="space-y-3 pt-2 text-center">
           <Link
-            href={`/learn?lesson=${recommendedLessonId}`}
+            href="/profile"
             className="inline-block w-full rounded-xl bg-accent px-8 py-4 text-base font-medium text-white shadow-sm transition hover:bg-accent-deep sm:w-auto sm:min-w-[300px]"
           >
-            开始你的第一节
+            进入学习中心
           </Link>
+          <p className="text-xs text-ink-mute">
+            首页会根据你的等级和画像,推荐你该走哪条学习线
+          </p>
           <div className="pt-1">
             <Link href="/levels" className="text-xs text-ink-mute hover:text-ink-soft">
               先看看 AI 能力 0-10 级地图 →

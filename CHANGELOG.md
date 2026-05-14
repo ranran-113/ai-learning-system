@@ -401,6 +401,84 @@ v主版本.次版本.修订版本
 
 ---
 
+## v0.4.2 - Step 1 信息架构重整(代码实施)
+
+日期：2026-05-14
+
+### ⭐ 这是 v2.0 框架重做的第一个代码版本
+
+v0.4.0-doc + v0.4.1-doc 文档对齐完毕后,本轮开始 **Step 1 信息架构重整**。详细计划见 `ROADMAP.md` Step 1。
+
+### 已交付
+
+**基础设施**:
+- ✅ `lib/learning-lines/registry.ts`:**4 大学习线元数据**(ai / aipm / tools / aipm-job)
+- ✅ `lib/learning-lines/progress.ts`:**跨线进度计算 + 4 动作完成状态**
+- ✅ `lib/feynman/prompts.ts`:费曼挑战 prompt 模板(3 个 prompt:挑战生成 + 10 岁孩子角色 + LLM-as-Judge)
+- ✅ `lib/feynman/evaluator.ts`:费曼 LLM 调用封装
+- ✅ `lib/langgraph/state.ts`:`OutputRecord` 扩展支持 `type=feynman` + `FeynmanData` 类型
+- ✅ `app/api/feynman/child-question/route.ts`:小孩反问 API
+- ✅ `app/api/feynman/judge/route.ts`:LLM-as-Judge API
+
+**组件**:
+- ✅ `components/learning-center-shell.tsx`:**侧边栏完全重写** —— 8 平铺 → 4 分组(学习线 / 持续学习 / 资产 / 设置)
+- ✅ `components/learning-line-card.tsx`:**4 大学习线卡片**(emoji + 进度条 + 推荐高亮)
+- ✅ `components/feynman-challenge.tsx`:**费曼挑战完整交互组件**(5 阶段:讲解 → 等问 → 答跟进 → 评价 → 结果)
+
+**页面**:
+- ✅ `app/learn/[direction]/page.tsx`:**学习线总览页**(章节列表 + 每章 4 动作按钮:读/聊/沉淀/费曼 + coming-soon 占位)
+- ✅ `app/learn/[direction]/[chapter]/feynman/page.tsx`:**费曼挑战页**
+- ✅ `app/profile/page.tsx`:**首页完全重写**(欢迎语 + Lv + 沉淀计数 + 接着上次/今日推荐 + 4 学习线卡片 + 持续学习区 + 资产区)
+- ✅ `app/onboarding/result/page.tsx`:**测试结果 CTA 改为「进入学习中心」**(跳 /profile 而不是 /learn?lesson=...)
+
+### 设计取舍
+
+- **chat 不再占首页 C 位**:用户进首页看到的是 4 大学习线,不是 chat 框。chat 退到「某一章的深化模式」(从某章卡片的「💬 聊」按钮进入)
+- **保持路由兼容**:`/textbooks/*` `/papers/*` `/hot/*` `/courses/*` 全部保留。新路由 `/learn/[direction]` 是主入口,但用户从旧入口进来也不破坏
+- **4 动作的具体路由**:
+  - 📖 读 → `/textbooks/[bookId]/[chapterId]` (复用现有 reader)
+  - 💬 聊 → `/learn?source=textbook&id=[bookId]-[chapterId]` (复用现有 chat)
+  - ✍ 沉淀 → 同上(在 chat 内点沉淀按钮)
+  - 🎯 费曼 → `/learn/[direction]/[chapter]/feynman` (新)
+- **「真懂」标准**:4 动作全部完成才算「真懂」一章(显示 ✓ 标记)
+- **三导师品牌位置**:**不占首页 C 位**,但侧边栏顶部副标题保留「三导师 · 4 学习线 · 你的成长系统」
+- **侧边栏占位项**:AI 工具 / AIPM 求职 / GitHub / 博客 显示 `soon` 标签,可点击查看占位页
+
+### Step 1 验收对照(ROADMAP §1.2)
+
+- [x] 用户登录后第一眼看到「4 条学习线」,不是 chat 框
+- [x] 新用户测完测试题,第一眼能看清自己该走哪条线(推荐线高亮)
+- [x] 任何一个学习线点进去能看到「进度 + 章节列表 + 4 动作」
+- [x] 费曼挑战入口可用,跑通最小版本(点击进入费曼页 + AI 评价)
+- [x] chat 不再是首页 C 位,但用户进某一章后能方便地进 chat
+- [x] 侧边栏分 4 组,视觉上一眼能看出层级
+- [x] 沉淀的笔记入口归到「资产」分组
+
+### Build 通过
+
+新增路由:
+- `/learn/[direction]` (4.85 kB)
+- `/learn/[direction]/[chapter]/feynman` (5.44 kB)
+- `/api/feynman/child-question`
+- `/api/feynman/judge`
+
+`/profile` 从 2.61 kB → 4.83 kB(因 4 学习线卡片 + 进度计算)。
+
+### 下一步
+
+- **用户验收 v0.4.2**(打开 /profile 看新首页,试一下费曼挑战)
+- v0.5.x: Step 2 补 AI 工具线 + AIPM 求职线内容
+- 当前 commit 标 `[MVP]`(v1.0 之前都是 MVP 阶段)
+
+### 用户需要做的
+
+1. **推送代码**: `cd /Users/maiyatang2017/学习系统 && git push`
+2. **打开 /profile 看新首页**,确认 4 学习线展示对
+3. **试一下费曼挑战**:进任意 AI 通识章节 → 学习线页 → 点 [🎯 费曼]
+4. **反馈**
+
+---
+
 ## v0.4.1-doc - 费曼学习法 + 教材-持续学习区双向链接 + MVP/正式版节奏
 
 日期：2026-05-14

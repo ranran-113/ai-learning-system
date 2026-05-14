@@ -16,13 +16,29 @@ export type ChatMessage = {
   createdAt: string;
 };
 
+// 费曼挑战的结果(v0.4 新增,在 OutputRecord 上扩展)
+export type FeynmanResult = "passed" | "almost" | "needs_work";
+
+export type FeynmanData = {
+  chapterId: string;             // 哪一章的费曼(如 ai-c05 / aipm-c02)
+  challengeQuestion: string;     // AI 给的挑战题
+  forbiddenTerms: string[];      // 禁用术语
+  userExplanation: string;       // 用户初次讲解
+  childQuestions: string[];      // AI 扮演 10 岁孩子的反问
+  userFollowUps: string[];       // 用户跟进回答(和 childQuestions 一对一)
+  result: FeynmanResult;
+  aiReview: string;              // AI 评价(通过点 / 差点 / 没过)
+  durationSeconds?: number;      // 整体用时
+};
+
 // 用户的输出沉淀 —— v0.1.6 起升级为"原子笔记"形态
+// v0.4 起新增 feynman 类型(费曼挑战记录)
 // 旧字段保持兼容（type / content / createdAt 必填）,新字段可选用于知识库视图
 export type OutputRecord = {
   id: string;
   lessonId: string;
-  type: "one_sentence" | "note" | "prompt" | "social_post" | "speech_summary";
-  content: string;          // 兼容旧版:仍是正文。新版正文也写这里
+  type: "one_sentence" | "note" | "prompt" | "social_post" | "speech_summary" | "feynman";
+  content: string;          // 兼容旧版:仍是正文。新版正文也写这里。feynman 时是用户讲解的合并版
   createdAt: string;
 
   // v0.1.6 新增:原子笔记字段
@@ -35,6 +51,9 @@ export type OutputRecord = {
     relevantMessageIds?: string[];   // 引用对话中哪几条消息
   };
   linkedNoteIds?: string[];  // 双向链接到其他笔记（v0.1.7 启用）
+
+  // v0.4 新增:费曼挑战记录(仅 type === "feynman" 时填)
+  feynman?: FeynmanData;
 };
 
 // 别名,方便代码里用更准确的名字
