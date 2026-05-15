@@ -232,31 +232,32 @@ function ChapterRow({
             {chapter.description}
           </p>
 
-          {/* 4 动作按钮 —— 每个链接都带 ?from=<lineId>,目标页据此返回正确位置 */}
+          {/* 3 主动作 —— v0.4.4 修正:聊&沉淀 是一体的(沉淀在 chat 内完成,不独立) */}
           {isAvailable && (
             <div className="flex flex-wrap gap-1.5 pt-1.5">
               <ActionButton
                 emoji="📖"
                 label="读"
-                done={actions?.read}
+                state={actions?.read ? "done" : "todo"}
                 href={`/textbooks/${bookId}/${chapter.id}?from=${lineId}`}
               />
               <ActionButton
                 emoji="💬"
-                label="聊"
-                done={actions?.chat}
+                label="聊&沉淀"
+                state={
+                  actions?.chat && actions?.note
+                    ? "done"
+                    : actions?.chat
+                    ? "partial"  // 聊过但没沉淀
+                    : "todo"
+                }
+                partialHint="聊过没沉淀"
                 href={`/learn?source=textbook&id=${bookId}-${chapter.id}&from=${lineId}`}
-              />
-              <ActionButton
-                emoji="✍"
-                label="沉淀"
-                done={actions?.note}
-                href={`/learn?source=textbook&id=${bookId}-${chapter.id}&from=${lineId}&intent=sediment`}
               />
               <ActionButton
                 emoji="🎯"
                 label="费曼"
-                done={actions?.feynman}
+                state={actions?.feynman ? "done" : "todo"}
                 href={`/learn/${lineId}/${chapter.id}/feynman`}
               />
             </div>
@@ -270,28 +271,37 @@ function ChapterRow({
 function ActionButton({
   emoji,
   label,
-  done,
+  state,
+  partialHint,
   href,
 }: {
   emoji: string;
   label: string;
-  done?: boolean;
+  state: "todo" | "partial" | "done";
+  partialHint?: string;
   href: string;
 }) {
+  // 3 种状态:未做 / 半完成(只聊没沉淀) / 完成
+  const cls =
+    state === "done"
+      ? "bg-moss/15 text-moss hover:bg-moss/25"
+      : state === "partial"
+      ? "bg-accent/25 text-accent-deep hover:bg-accent/35"
+      : "bg-accent/10 text-accent hover:bg-accent/20";
+
+  const title =
+    state === "done"
+      ? `${label} 已完成`
+      : state === "partial" && partialHint
+      ? `${label}: ${partialHint}`
+      : `去 ${label}`;
+
   return (
-    <Link
-      href={href}
-      className={cn(
-        "inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs transition",
-        done
-          ? "bg-moss/15 text-moss hover:bg-moss/25"
-          : "bg-accent/10 text-accent hover:bg-accent/20"
-      )}
-      title={done ? `${label} 已完成` : `去 ${label}`}
-    >
+    <Link href={href} className={cn("inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs transition", cls)} title={title}>
       <span>{emoji}</span>
       <span>{label}</span>
-      {done && <span className="text-[10px]">✓</span>}
+      {state === "done" && <span className="text-[10px]">✓</span>}
+      {state === "partial" && <span className="text-[10px]">⚠</span>}
     </Link>
   );
 }
