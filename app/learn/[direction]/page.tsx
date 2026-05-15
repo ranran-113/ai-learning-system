@@ -232,26 +232,26 @@ function ChapterRow({
             {chapter.description}
           </p>
 
-          {/* 4 动作按钮 */}
+          {/* 4 动作按钮 —— 每个链接都带 ?from=<lineId>,目标页据此返回正确位置 */}
           {isAvailable && (
             <div className="flex flex-wrap gap-1.5 pt-1.5">
               <ActionButton
                 emoji="📖"
                 label="读"
                 done={actions?.read}
-                href={`/textbooks/${bookId}/${chapter.id}`}
+                href={`/textbooks/${bookId}/${chapter.id}?from=${lineId}`}
               />
               <ActionButton
                 emoji="💬"
                 label="聊"
                 done={actions?.chat}
-                href={`/learn?source=textbook&id=${bookId}-${chapter.id}`}
+                href={`/learn?source=textbook&id=${bookId}-${chapter.id}&from=${lineId}`}
               />
               <ActionButton
                 emoji="✍"
                 label="沉淀"
                 done={actions?.note}
-                href={`/learn?source=textbook&id=${bookId}-${chapter.id}`}
+                href={`/learn?source=textbook&id=${bookId}-${chapter.id}&from=${lineId}&intent=sediment`}
               />
               <ActionButton
                 emoji="🎯"

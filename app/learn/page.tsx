@@ -88,6 +88,22 @@ async function loadSourceInfo(
     if (!outline) return null;
     const content = await loadChapter(bookId, chapterId);
     if (!content) return null;
+
+    // v0.4.3 修复:如果带了 ?from=<lineId> 参数,返回回学习线;否则默认回教材
+    const from = searchParams.get("from");
+    let backHref = `/textbooks/${bookId}/${chapterId}`;
+    let backLabel = "← 回到教材";
+    if (from === "ai" || from === "aipm" || from === "tools" || from === "aipm-job") {
+      const lineName: Record<string, string> = {
+        ai: "AI 通识",
+        aipm: "AIPM",
+        tools: "AI 工具",
+        "aipm-job": "AIPM 求职",
+      };
+      backHref = `/learn/${from}`;
+      backLabel = `← 返回 ${lineName[from]} 学习线`;
+    }
+
     return {
       lesson: {
         id: `textbook-${id}`,
@@ -105,8 +121,8 @@ async function loadSourceInfo(
         tutorialContent: content.markdown,
       },
       sourceLabel: bookId === "ai" ? "AI 通识教材" : "AIPM 教材",
-      backHref: `/textbooks/${bookId}/${chapterId}`,
-      backLabel: "← 回到教材",
+      backHref,
+      backLabel,
     };
   }
 

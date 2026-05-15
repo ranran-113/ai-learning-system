@@ -2,24 +2,49 @@
 
 // /textbooks/[bookId]/[chapterId] —— 章节阅读页（tutorial mode）
 // 右上角有「让导师讲解」CTA → /learn?source=textbook&id=<book>-<chapter>
-import { use, useEffect, useState } from "react";
+//
+// v0.4.3 修复:支持 ?from=<lineId> 参数,从学习线进入时返回回学习线
+import { use, useEffect, useState, Suspense } from "react";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, useSearchParams } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { LearningCenterShell } from "@/components/learning-center-shell";
+import { LearningCenterShell, type NavKey } from "@/components/learning-center-shell";
 import { TEXTBOOKS, getOutline } from "@/lib/textbooks/registry";
 import { loadChapter, AVAILABLE_CHAPTERS } from "@/lib/textbooks/loader";
 import type { TextbookId, ChapterContent } from "@/lib/textbooks/types";
 import { MENTOR_NAMES } from "@/types/mentor";
 
-export default function ChapterPage({
+// 从 from 参数推导:返回链接 / 标签 / 侧边栏高亮
+type FromContext = {
+  backHref: string;
+  backLabel: string;
+  navKey: NavKey;
+};
+
+function getFromContext(bookId: TextbookId, from: string | null): FromContext {
+  // from=ai/aipm/tools/aipm-job → 从学习线进入,返回学习线
+  if (from === "ai") return { backHref: "/learn/ai", backLabel: "← 返回 AI 通识学习线", navKey: "line-ai" };
+  if (from === "aipm") return { backHref: "/learn/aipm", backLabel: "← 返回 AIPM 学习线", navKey: "line-aipm" };
+  if (from === "tools") return { backHref: "/learn/tools", backLabel: "← 返回 AI 工具学习线", navKey: "line-tools" };
+  if (from === "aipm-job") return { backHref: "/learn/aipm-job", backLabel: "← 返回 AIPM 求职学习线", navKey: "line-job" };
+  // 没有 from 参数 → 默认返回教材目录(老路径,保持兼容)
+  return { backHref: `/textbooks/${bookId}`, backLabel: "← 返回目录", navKey: "textbooks" };
+}
+
+function ChapterPageInner({
   params,
 }: {
   params: Promise<{ bookId: string; chapterId: string }>;
 }) {
   const { bookId, chapterId } = use(params);
   if (bookId !== "ai" && bookId !== "aipm") notFound();
+
+  const searchParams = useSearchParams();
+  const from = searchParams.get("from");
+  const fromCtx = getFromContext(bookId as TextbookId, from);
+  // 「聊」链接也带上 from,这样从教材点「让导师讲解」也能正确返回
+  const chatLinkSuffix = from ? `&from=${from}` : "";
 
   const outline = getOutline(bookId as TextbookId, chapterId);
   if (!outline) notFound();
@@ -42,10 +67,10 @@ export default function ChapterPage({
 
   if (!isAvailable) {
     return (
-      <LearningCenterShell current="textbooks">
+      <LearningCenterShell current={fromCtx.navKey}>
         <section className="space-y-6">
-          <Link href={`/textbooks/${bookId}`} className="text-sm text-ink-mute hover:text-ink-soft">
-            ← 返回目录
+          <Link href={fromCtx.backHref} className="text-sm text-ink-mute hover:text-ink-soft">
+            {fromCtx.backLabel}
           </Link>
           <div className="card space-y-3 text-center">
             <p className="text-base font-medium">本章即将上线</p>
@@ -55,7 +80,7 @@ export default function ChapterPage({
             <p className="text-xs leading-relaxed text-ink-mute">
               教材采用「Claude 直接撰写 + 用户审 / 加料」流程。每轮我完成 3-4 章。这一章在排队，将随下一批一起上线。
             </p>
-            <Link href={`/textbooks/${bookId}`} className="btn-primary inline-block text-sm">
+            <Link href={fromCtx.backHref} className="btn-primary inline-block text-sm">
               看其他章节
             </Link>
           </div>
@@ -66,7 +91,7 @@ export default function ChapterPage({
 
   if (loading) {
     return (
-      <LearningCenterShell current="textbooks">
+      <LearningCenterShell current={fromCtx.navKey}>
         <p className="py-12 text-center text-sm text-ink-mute">加载中…</p>
       </LearningCenterShell>
     );
@@ -74,18 +99,18 @@ export default function ChapterPage({
 
   if (!content) {
     return (
-      <LearningCenterShell current="textbooks">
+      <LearningCenterShell current={fromCtx.navKey}>
         <p className="py-12 text-center text-sm text-ink-mute">加载失败</p>
       </LearningCenterShell>
     );
   }
 
   return (
-    <LearningCenterShell current="textbooks">
+    <LearningCenterShell current={fromCtx.navKey}>
       <article className="space-y-6">
         <div className="flex items-center justify-between gap-3">
-          <Link href={`/textbooks/${bookId}`} className="text-sm text-ink-mute hover:text-ink-soft">
-            ← 返回目录
+          <Link href={fromCtx.backHref} className="text-sm text-ink-mute hover:text-ink-soft">
+            {fromCtx.backLabel}
           </Link>
           <div className="flex items-center gap-2 text-xs text-ink-mute">
             <span className="rounded-full bg-bg-warm px-2 py-0.5">
@@ -153,7 +178,7 @@ export default function ChapterPage({
           </p>
           <div className="pt-1">
             <Link
-              href={`/learn?source=textbook&id=${bookId}-${chapterId}`}
+              href={`/learn?source=textbook&id=${bookId}-${chapterId}${chatLinkSuffix}`}
               className="btn-primary inline-block text-sm"
             >
               让{MENTOR_NAMES[content.defaultMentor]}陪我讨论
@@ -178,5 +203,20 @@ export default function ChapterPage({
         </details>
       </article>
     </LearningCenterShell>
+  );
+}
+
+// 默认 export:用 Suspense 包住,因为 useSearchParams 需要在 Suspense 边界内
+export default function ChapterPage(props: { params: Promise<{ bookId: string; chapterId: string }> }) {
+  return (
+    <Suspense
+      fallback={
+        <LearningCenterShell current="textbooks">
+          <p className="py-12 text-center text-sm text-ink-mute">加载中…</p>
+        </LearningCenterShell>
+      }
+    >
+      <ChapterPageInner params={props.params} />
+    </Suspense>
   );
 }
