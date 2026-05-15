@@ -1,5 +1,8 @@
 // 三导师 prompt builder —— 把 LearningContext 翻译成给 LLM 的 messages 数组。
 // Harness #6: prompt 结构按"稳定前缀"组织,让 DeepSeek 自动 prefix caching 生效。
+//
+// v0.4.5 重大调整:删除所有字数硬上限校验。
+// 质量校验改为结构性检查(卡帕西必须有钩子等),不查字数。
 import type { LearningContext } from "@/lib/langgraph/state";
 import type { MentorKey } from "@/types/mentor";
 import { MENTOR_NAMES } from "@/types/mentor";
@@ -8,8 +11,6 @@ import {
   QIAN_SYSTEM_PROMPT,
   ADLER_SYSTEM_PROMPT,
   ADLER_EVIDENCE_CONFLICT_OPENING,
-  MENTOR_REPLY_LIMITS,
-  MENTOR_OPENING_LIMITS,
 } from "@/lib/prompts/mentor-personas";
 import type { LLMMessage } from "@/lib/llm/client";
 
@@ -99,77 +100,143 @@ export function buildLLMMessages(
   return messages;
 }
 
-// ============= Harness #1: 输出校验规则 =============
+// ============= Harness #1: 输出校验规则 (v0.4.5 重构) =============
+// 删除字数硬上限。改为「结构性质量检查」:
+//   - 卡帕西: 必须留下让用户参与的钩子(包含 ? / ？ 或反问 / 邀请性短语)
+//   - 钱学森: 必须落到具体下一步(包含「下一步」「先做」「接下来」「你来」等动作词)
+//   - 阿德勒: 第一句必须是接住情绪,不能立刻谈学习任务
+//
+// 这些检查在 valid=false 时触发 buildRewriteRequest 让 LLM 重写。
+// 不再有「字数超了就重写」。
 export type ValidationResult = {
   valid: boolean;
   reason?: string;
-  hardLimit: number;
 };
 
-// 注：第一轮（含 5E 锚定段）用 MENTOR_OPENING_LIMITS,后续用 MENTOR_REPLY_LIMITS
+// 卡帕西的「参与钩子」检测:除了问号,还能用反问 / 邀请性语气结尾
+function hasEngagementHook(content: string): boolean {
+  if (content.includes("？") || content.includes("?")) return true;
+  // 反问 / 邀请性短语
+  const invitationCues = [
+    "你看",
+    "你试试",
+    "你说",
+    "你觉得",
+    "你想想",
+    "你怎么看",
+    "看一下",
+    "想一下",
+    "你来",
+    "再说说",
+  ];
+  return invitationCues.some((cue) => content.includes(cue));
+}
+
+// 钱学森的「下一步」检测:回复里要有具体动作
+function hasActionableNext(content: string): boolean {
+  const actionCues = [
+    "下一步",
+    "先做",
+    "接下来",
+    "你来",
+    "你先",
+    "试试",
+    "写一个",
+    "画一个",
+    "列一个",
+    "做一件",
+  ];
+  return actionCues.some((cue) => content.includes(cue));
+}
+
+// 阿德勒的「先接情绪」检测:首句不能直接谈任务/技术
+function startsWithTaskTalk(content: string): boolean {
+  const taskOpeners = [
+    "你要",
+    "我们要",
+    "先把",
+    "首先",
+    "我们来",
+    "开始",
+    "学习",
+    "理解",
+  ];
+  const firstSentence = content.split(/[。!?！？\n]/, 1)[0] || "";
+  return taskOpeners.some((opener) => firstSentence.startsWith(opener));
+}
+
 export function validateMentorReply(
   mentor: MentorKey,
   content: string,
-  isFirstTurn: boolean = false
+  _isFirstTurn: boolean = false
 ): ValidationResult {
-  const limits = isFirstTurn ? MENTOR_OPENING_LIMITS[mentor] : MENTOR_REPLY_LIMITS[mentor];
-  const len = content.length;
+  const trimmed = content.trim();
 
-  // 字数硬上限
-  if (len > limits.hard) {
+  // 全部 0 字 / 极短的 = 无效
+  if (trimmed.length < 5) {
+    return { valid: false, reason: "回复太短,几乎没有内容" };
+  }
+
+  // 卡帕西: 必须留参与钩子
+  if (mentor === "karpathy" && !hasEngagementHook(trimmed)) {
     return {
       valid: false,
-      reason: `回复 ${len} 字超过${isFirstTurn ? "开场" : "硬"}上限 ${limits.hard} 字`,
-      hardLimit: limits.hard,
+      reason: "卡帕西的回复必须留一个让用户参与的钩子(提问 / 反问 / 邀请)",
     };
   }
 
-  // 卡帕西必须提问
-  if (mentor === "karpathy" && !content.includes("？") && !content.includes("?")) {
+  // 钱学森: 后续轮必须有具体下一步(首轮锚定可以不需要)
+  if (mentor === "qian" && !_isFirstTurn && !hasActionableNext(trimmed) && !hasEngagementHook(trimmed)) {
     return {
       valid: false,
-      reason: "卡帕西的回复必须包含一个问题",
-      hardLimit: limits.hard,
+      reason: "钱学森的回复要么给具体下一步,要么留参与钩子,不能两个都没有",
     };
   }
 
-  return { valid: true, hardLimit: limits.hard };
+  // 阿德勒: 不能首句就谈学习任务
+  if (mentor === "adler" && startsWithTaskTalk(trimmed)) {
+    return {
+      valid: false,
+      reason: "阿德勒第一句应该是接住情绪 / 状态,不能立刻谈学习任务",
+    };
+  }
+
+  return { valid: true };
 }
 
-// 重写指令：让 LLM 用更紧的约束重写一次
+// 重写指令: 当校验失败时用更明确的指令重写一次
 export function buildRewriteRequest(
   mentor: MentorKey,
   originalReply: string,
   reason: string
 ): LLMMessage[] {
-  const limits = MENTOR_REPLY_LIMITS[mentor];
   return [
     { role: "assistant", content: originalReply },
     {
       role: "user",
-      content: `[系统校验] 你刚才的回复${reason}。请用更符合规则的方式重新说一遍：${
+      content: `[系统校验] 你刚才的回复:${reason}。请重新说一遍。${
         mentor === "karpathy"
-          ? `≤ ${limits.soft} 字,必须包含一个问题。`
+          ? "记住:必须留一个让我参与的钩子(提问 / 反问 / 邀请)。质量优先,不限字数,但不要写废话。"
           : mentor === "qian"
-          ? `≤ ${limits.soft} 字,要落到「你下一步具体做什么」。`
-          : `${limits.soft} 字内,先接情绪再说事。`
+          ? "记住:要么给具体下一步动作,要么留参与钩子。质量优先,不限字数,但要结构化清晰。"
+          : "记住:第一句先接住我的情绪 / 状态,不要立刻谈学习任务。节奏慢一点,多用短句。"
       }只回新版本,不要解释。`,
     },
   ];
 }
 
-// 兼容老 API
-export function checkReplyLength(mentor: MentorKey, reply: string): {
+// v0.4.5 废弃:旧的 checkReplyLength API。
+// 保留空壳函数避免外部 import 报错,但永远返回 valid 状态。
+export function checkReplyLength(_mentor: MentorKey, reply: string): {
   withinLimit: boolean;
   softLimit: number;
   hardLimit: number;
   actualLength: number;
 } {
-  const limits = MENTOR_REPLY_LIMITS[mentor];
   return {
-    withinLimit: reply.length <= limits.hard,
-    softLimit: limits.soft,
-    hardLimit: limits.hard,
+    withinLimit: true,
+    softLimit: Infinity,
+    hardLimit: Infinity,
     actualLength: reply.length,
   };
 }

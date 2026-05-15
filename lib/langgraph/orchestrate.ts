@@ -33,10 +33,12 @@ export async function* runChatTurn(
     messages.push({ role: "user", content: latestUserMessage });
   }
 
+  // v0.4.5: token 预算放宽 —— 质量优先,不限字数。
+  // 200 token ≈ 100 中文字,太紧。给 LLM 足够空间发挥(LLM 自己会按质量原则克制)。
   const tokenBudget = {
-    karpathy: 200,
-    qian: 300,
-    adler: 200,
+    karpathy: 1200,
+    qian: 1500,
+    adler: 1000,
   }[decision.mentor];
 
   // 第一遍：流式输出
